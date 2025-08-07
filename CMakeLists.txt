@@ -91,6 +91,14 @@ set(BDF_PARSER_SOURCES
 add_library(bdf_parser ${BDF_PARSER_SOURCES})
 target_link_libraries(bdf_parser fakeg_core)
 
+# XYZ Parser library
+set(XYZ_PARSER_SOURCES
+    src/parsers/xyz_parser.cpp
+)
+
+add_library(xyz_parser ${XYZ_PARSER_SOURCES})
+target_link_libraries(xyz_parser fakeg_core)
+
 # 主应用程序库
 set(FAKEG_APP_SOURCES
     src/main/fake_g_app.cpp
@@ -107,6 +115,10 @@ target_link_libraries(afakeg fakeg_app amesp_parser)
 add_executable(bfakeg src/main/bfake_g.cpp)
 target_link_libraries(bfakeg fakeg_core bdf_parser)
 
+# XfakeG executable
+add_executable(xfakeg src/main/xfake_g.cpp)
+target_link_libraries(xfakeg fakeg_core xyz_parser)
+
 # 静态链接时的特殊处理（Linux）
 if((FULL_STATIC OR STATIC_LINKING) AND NOT WINDOWS_BUILD)
     # 确保使用静态库
@@ -122,12 +134,18 @@ if((FULL_STATIC OR STATIC_LINKING) AND NOT WINDOWS_BUILD)
     set_target_properties(fakeg_app PROPERTIES 
         LINK_SEARCH_START_STATIC 1
         LINK_SEARCH_END_STATIC 1)
+    set_target_properties(xyz_parser PROPERTIES 
+        LINK_SEARCH_START_STATIC 1
+        LINK_SEARCH_END_STATIC 1)
         
     # 可执行文件的静态链接设置
     set_target_properties(afakeg PROPERTIES 
         LINK_SEARCH_START_STATIC 1
         LINK_SEARCH_END_STATIC 1)
     set_target_properties(bfakeg PROPERTIES 
+        LINK_SEARCH_START_STATIC 1
+        LINK_SEARCH_END_STATIC 1)
+    set_target_properties(xfakeg PROPERTIES 
         LINK_SEARCH_START_STATIC 1
         LINK_SEARCH_END_STATIC 1)
 endif()
@@ -141,13 +159,14 @@ if(WINDOWS_BUILD)
     set_target_properties(bfakeg PROPERTIES
         WIN32_EXECUTABLE FALSE
         SUFFIX ".exe")
+    set_target_properties(xfakeg PROPERTIES
+        WIN32_EXECUTABLE FALSE
+        SUFFIX ".exe")
 endif()
 
 # 安装配置
-install(TARGETS afakeg bfakeg DESTINATION bin)
-install(TARGETS fakeg_core DESTINATION lib)
-install(TARGETS amesp_parser DESTINATION lib)
-install(TARGETS bdf_parser DESTINATION lib)
+install(TARGETS afakeg bfakeg xfakeg DESTINATION bin)
+install(TARGETS fakeg_core amesp_parser bdf_parser xyz_parser DESTINATION lib)
 install(DIRECTORY config/ DESTINATION share/fakeg/config)
 install(FILES README.md DESTINATION share/doc/fakeg)
 

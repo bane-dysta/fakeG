@@ -54,12 +54,12 @@ void FakeGApp::setOutputFile(const std::string& filename) {
 
 bool FakeGApp::initialize() {
     if (!parser) {
-        showErrorInfo("没有设置解析器");
+        showErrorInfo("No parser set");
         return false;
     }
     
     if (inputFilename.empty()) {
-        showErrorInfo("没有指定输入文件");
+        showErrorInfo("No input file specified");
         return false;
     }
     
@@ -75,26 +75,26 @@ bool FakeGApp::processFile() {
         return false;
     }
     
-    appLogger.info("开始处理文件: " + inputFilename);
-    appLogger.debug("使用解析器: " + parser->getParserName() + " v" + parser->getParserVersion());
+    appLogger.info("Starting to process file: " + inputFilename);
+    appLogger.debug("Using parser: " + parser->getParserName() + " v" + parser->getParserVersion());
     
     // 打开输入文件
     io::FileReader reader(inputFilename);
     if (!reader.isOpen()) {
-        showErrorInfo("无法打开输入文件: " + inputFilename);
+        showErrorInfo("Cannot open input file: " + inputFilename);
         return false;
     }
     
     // 验证输入文件
     if (!parser->validateInput(inputFilename)) {
-        showErrorInfo("输入文件格式不正确");
+        showErrorInfo("Input file format is incorrect");
         return false;
     }
     
     // 解析文件
     data::ParsedData parsedData;
     if (!parser->parse(reader, parsedData)) {
-        showErrorInfo("解析文件失败");
+        showErrorInfo("Failed to parse file");
         return false;
     }
     
@@ -104,11 +104,11 @@ bool FakeGApp::processFile() {
     // 生成输出
     writer.setOutputFilename(outputFilename);
     if (!writer.writeGaussianOutput(parsedData)) {
-        showErrorInfo("写入输出文件失败: " + outputFilename);
+        showErrorInfo("Failed to write output file: " + outputFilename);
         return false;
     }
     
-    appLogger.info("成功生成输出文件: " + outputFilename);
+    appLogger.info("Successfully generated output file: " + outputFilename);
     return true;
 }
 
@@ -144,24 +144,24 @@ bool FakeGApp::isDebugMode() const {
 }
 
 void FakeGApp::printHelp() const {
-    std::cout << "用法: " << programName << " [选项] <输入文件>" << std::endl;
+    std::cout << "Usage: " << programName << " [options] <input_file>" << std::endl;
     std::cout << std::endl;
-    std::cout << "将量子化学计算输出转换为Gaussian格式" << std::endl;
+    std::cout << "Convert quantum chemistry calculation output to Gaussian format" << std::endl;
     std::cout << std::endl;
-    std::cout << "选项:" << std::endl;
-    std::cout << "  --debug              启用调试模式" << std::endl;
-    std::cout << "  -o, --output FILE    指定输出文件名" << std::endl;
-    std::cout << "  -h, --help           显示此帮助信息" << std::endl;
-    std::cout << "  -v, --version        显示版本信息" << std::endl;
+    std::cout << "Options:" << std::endl;
+    std::cout << "  --debug              Enable debug mode" << std::endl;
+    std::cout << "  -o, --output FILE    Specify output filename" << std::endl;
+    std::cout << "  -h, --help           Show this help message" << std::endl;
+    std::cout << "  -v, --version        Show version information" << std::endl;
     std::cout << std::endl;
-    std::cout << "示例:" << std::endl;
+    std::cout << "Examples:" << std::endl;
     std::cout << "  " << programName << " input.out" << std::endl;
     std::cout << "  " << programName << " --debug -o output.log input.out" << std::endl;
 }
 
 void FakeGApp::printVersion() const {
-    std::cout << programName << " 版本 " << programVersion << std::endl;
-    std::cout << "作者: " << authorInfo << std::endl;
+    std::cout << programName << " version " << programVersion << std::endl;
+    std::cout << "Author: " << authorInfo << std::endl;
 }
 
 bool FakeGApp::parseCommandLineArgs(int argc, char* argv[]) {
@@ -189,7 +189,7 @@ bool FakeGApp::parseCommandLineArgs(int argc, char* argv[]) {
     
     std::string inputFile = argParser.getPositionalArg(0);
     if (inputFile.empty()) {
-        showErrorInfo("请指定输入文件");
+        showErrorInfo("Please specify input file");
         printHelp();
         return false;
     }
@@ -211,7 +211,7 @@ bool FakeGApp::setupOutput() {
         try {
             std::filesystem::create_directories(outputDir);
         } catch (const std::exception& e) {
-            showErrorInfo("无法创建输出目录: " + outputDir.string());
+            showErrorInfo("Cannot create output directory: " + outputDir.string());
             return false;
         }
     }
@@ -221,17 +221,17 @@ bool FakeGApp::setupOutput() {
 
 void FakeGApp::showProgressInfo(const data::ParsedData& data) {
     if (data.hasOpt && !data.optSteps.empty()) {
-        appLogger.info("找到优化计算，共 " + std::to_string(data.optSteps.size()) + " 步");
+        appLogger.info("Found optimization calculation with " + std::to_string(data.optSteps.size()) + " steps");
     } else if (!data.optSteps.empty()) {
-        appLogger.info("找到单点计算");
+        appLogger.info("Found single point calculation");
     }
     
     if (data.hasFreq && !data.frequencies.empty()) {
-        appLogger.info("找到频率计算，共 " + std::to_string(data.frequencies.size()) + " 个频率");
+        appLogger.info("Found frequency calculation with " + std::to_string(data.frequencies.size()) + " frequencies");
     }
     
     if (data.thermoData.hasData) {
-        appLogger.info("找到热力学数据");
+        appLogger.info("Found thermodynamic data");
     }
 }
 

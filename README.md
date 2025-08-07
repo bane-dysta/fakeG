@@ -7,6 +7,7 @@ FakeG是一个模块化的C++项目，用于将各种量子化学软件的结构
 **当前支持的格式：**
 - **AMESP** → AfakeG可执行文件
 - **BDF** → BfakeG可执行文件
+- **XYZ/TRJ轨迹** → XfakeG可执行文件
 
 > 关于orca，可移步sobereva老师开发的[OfakeG](http://sobereva.com/498)。
 
@@ -121,6 +122,21 @@ make -j$(nproc)
 # 命令行模式
 ./bfakeg input.out
 ./bfakeg input.out --debug
+```
+
+### XfakeG (XYZ/TRJ轨迹转换)
+
+```bash
+# 交互模式
+./xfakeg
+
+# 命令行模式
+./xfakeg trajectory.xyz
+./xfakeg trajectory.trj --debug
+
+# 支持能量提取的格式：
+# molclus: Energy =   -147.48410656 a.u.  #Cluster:    1
+# xtb:     energy: -149.706157544781 gnorm: 0.499531841458 xtb: 6.7.0 (75e6a61)
 ```
 
 ## 编写新解析器
