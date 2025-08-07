@@ -225,8 +225,8 @@ void GaussianWriter::writeFrequencyBlock(std::ofstream& out, const data::ParsedD
                 int i = startIdx + icol;
                 if (icol == 0) {
                     out << std::setw(6) << (iatom + 1) << std::setw(4) << atomicNumber << "  ";
-                    if (i < data.frequencies.size() && 
-                        iatom < data.frequencies[i].displacements.size() &&
+                    if (static_cast<size_t>(i) < data.frequencies.size() && 
+                        static_cast<size_t>(iatom) < data.frequencies[i].displacements.size() &&
                         data.frequencies[i].displacements[iatom].size() >= 3) {
                         out << std::fixed << std::setprecision(2)
                             << std::setw(7) << data.frequencies[i].displacements[iatom][0]
@@ -237,8 +237,8 @@ void GaussianWriter::writeFrequencyBlock(std::ofstream& out, const data::ParsedD
                     }
                 } else {
                     out << "  ";
-                    if (i < data.frequencies.size() && 
-                        iatom < data.frequencies[i].displacements.size() &&
+                    if (static_cast<size_t>(i) < data.frequencies.size() && 
+                        static_cast<size_t>(iatom) < data.frequencies[i].displacements.size() &&
                         data.frequencies[i].displacements[iatom].size() >= 3) {
                         out << std::fixed << std::setprecision(2)
                             << std::setw(7) << data.frequencies[i].displacements[iatom][0]

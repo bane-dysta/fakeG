@@ -1,6 +1,6 @@
 build/*
-*fakeG.cpp
-tmp.sh
+build_windows/*
+*.sh
 external/*
 examp
 rules.txt

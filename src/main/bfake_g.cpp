@@ -14,23 +14,23 @@ int main(int argc, char* argv[]) {
     app::FakeGApp app(std::move(parser));
     
     // 设置程序信息
-    app.setProgramInfo("BfakeG", "1.1.0", "Bane Dysta & Claude 4.0");
+    app.setProgramInfo("BfakeG", "1.0.0", "Bane Dysta & Claude 4.0");
     
     // 如果没有提供命令行参数，则交互式获取输入文件
     if (argc == 1) {
-        std::cout << "BfakeG: 从BDF输出生成伪Gaussian格式文件" << std::endl;
-        std::cout << "作者: Bane Dysta & Claude 4.0" << std::endl;
+        std::cout << "BfakeG: Convert BDF output to fake Gaussian format" << std::endl;
+        std::cout << "Author: Bane Dysta & Claude 4.0" << std::endl;
         std::cout << std::endl;
         
         std::string inputFile;
-        std::cout << "请输入BDF输出文件路径: ";
+        std::cout << "Please enter BDF output file path: ";
         std::getline(std::cin, inputFile);
         
         // 处理引号
         inputFile = string_utils::removeQuotes(inputFile);
         
         if (inputFile.empty()) {
-            std::cerr << "错误: 未提供输入文件" << std::endl;
+            std::cerr << "Error: No input file provided" << std::endl;
             return 1;
         }
         

@@ -6,16 +6,58 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# 静态链接选项
+option(STATIC_LINKING "Enable static linking for better portability" OFF)
+option(FULL_STATIC "Enable full static linking (including glibc)" OFF)
+option(WINDOWS_BUILD "Enable Windows cross-compilation using mingw-w64" OFF)
+
+# Windows交叉编译设置
+if(WINDOWS_BUILD)
+    message(STATUS "启用Windows交叉编译")
+    set(CMAKE_SYSTEM_NAME Windows)
+    set(CMAKE_C_COMPILER x86_64-w64-mingw32-gcc)
+    set(CMAKE_CXX_COMPILER x86_64-w64-mingw32-g++)
+    set(CMAKE_RC_COMPILER x86_64-w64-mingw32-windres)
+    set(CMAKE_FIND_ROOT_PATH /usr/x86_64-w64-mingw32)
+    set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+    set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+    set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+    
+    # Windows静态链接设置
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -static")
+    set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "")
+    
+    # 设置可执行文件后缀
+    set(CMAKE_EXECUTABLE_SUFFIX ".exe")
+endif()
+
 # 编译选项
 if(MSVC)
     add_compile_options(/W4)
 else()
     add_compile_options(-Wall -Wextra -pedantic)
+    # Windows编译时的特殊设置
+    if(WINDOWS_BUILD)
+        add_compile_options(-DWIN32 -D_WIN32_WINNT=0x0601)
+    endif()
 endif()
 
 # 调试模式设置
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_definitions(-DDEBUG)
+endif()
+
+# Linux静态链接设置（不适用于Windows交叉编译）
+if(NOT WINDOWS_BUILD)
+    if(FULL_STATIC)
+        message(STATUS "启用完全静态链接 (包括glibc)")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+        set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+        set(BUILD_SHARED_LIBS OFF)
+    elseif(STATIC_LINKING)
+        message(STATUS "启用部分静态链接 (libgcc, libstdc++)")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+    endif()
 endif()
 
 # 包含目录
@@ -61,10 +103,45 @@ target_link_libraries(fakeg_app fakeg_core)
 add_executable(afakeg src/main/afake_g.cpp)
 target_link_libraries(afakeg fakeg_app amesp_parser)
 
-# 暂时注释掉BfakeG
-# 创建BfakeG可执行文件
+# BfakeG可执行文件
 add_executable(bfakeg src/main/bfake_g.cpp)
 target_link_libraries(bfakeg fakeg_core bdf_parser)
+
+# 静态链接时的特殊处理（Linux）
+if((FULL_STATIC OR STATIC_LINKING) AND NOT WINDOWS_BUILD)
+    # 确保使用静态库
+    set_target_properties(fakeg_core PROPERTIES 
+        LINK_SEARCH_START_STATIC 1
+        LINK_SEARCH_END_STATIC 1)
+    set_target_properties(amesp_parser PROPERTIES 
+        LINK_SEARCH_START_STATIC 1
+        LINK_SEARCH_END_STATIC 1)
+    set_target_properties(bdf_parser PROPERTIES 
+        LINK_SEARCH_START_STATIC 1
+        LINK_SEARCH_END_STATIC 1)
+    set_target_properties(fakeg_app PROPERTIES 
+        LINK_SEARCH_START_STATIC 1
+        LINK_SEARCH_END_STATIC 1)
+        
+    # 可执行文件的静态链接设置
+    set_target_properties(afakeg PROPERTIES 
+        LINK_SEARCH_START_STATIC 1
+        LINK_SEARCH_END_STATIC 1)
+    set_target_properties(bfakeg PROPERTIES 
+        LINK_SEARCH_START_STATIC 1
+        LINK_SEARCH_END_STATIC 1)
+endif()
+
+# Windows特殊处理
+if(WINDOWS_BUILD)
+    # 为Windows可执行文件设置属性
+    set_target_properties(afakeg PROPERTIES
+        WIN32_EXECUTABLE FALSE
+        SUFFIX ".exe")
+    set_target_properties(bfakeg PROPERTIES
+        WIN32_EXECUTABLE FALSE
+        SUFFIX ".exe")
+endif()
 
 # 安装配置
 install(TARGETS afakeg bfakeg DESTINATION bin)
@@ -74,21 +151,28 @@ install(TARGETS bdf_parser DESTINATION lib)
 install(DIRECTORY config/ DESTINATION share/fakeg/config)
 install(FILES README.md DESTINATION share/doc/fakeg)
 
-# 创建配置文件安装
-# install(FILES config/afakeg.yaml config/bfakeg.yaml
-#     DESTINATION share/fakeg/config
-#     OPTIONAL
-# )
-
-# 创建文档安装
-# install(FILES README.md
-#     DESTINATION share/doc/fakeg
-#     OPTIONAL
-# )
-
 # CPack配置（打包）
 set(CPACK_PACKAGE_NAME "FakeG")
-set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "FakeG - Quantum Chemistry Output Converter")
 set(CPACK_PACKAGE_VENDOR "FakeG Project")
-include(CPack) 
+include(CPack)
+
+# 显示编译信息
+message(STATUS "=== FakeG 编译配置 ===")
+message(STATUS "C++ 标准: ${CMAKE_CXX_STANDARD}")
+message(STATUS "构建类型: ${CMAKE_BUILD_TYPE}")
+if(WINDOWS_BUILD)
+    message(STATUS "目标平台: Windows (交叉编译)")
+    message(STATUS "编译器: ${CMAKE_CXX_COMPILER}")
+else()
+    message(STATUS "目标平台: Linux")
+    if(FULL_STATIC)
+        message(STATUS "链接方式: 完全静态链接")
+    elseif(STATIC_LINKING)
+        message(STATUS "链接方式: 部分静态链接")
+    else()
+        message(STATUS "链接方式: 动态链接")
+    endif()
+endif()
+message(STATUS "========================") 
