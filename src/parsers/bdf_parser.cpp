@@ -336,7 +336,7 @@ void BdfParser::parseFrequencyBlock(std::ifstream& file, int nFreqs, data::Parse
     
     // 创建带有对称性信息的频率模式
     int startIdx = data.frequencies.size();
-    for (int i = 0; i < nFreqs; i++) {
+    for (size_t i = 0; i < static_cast<size_t>(nFreqs); i++) {
         data::FreqMode mode;
         mode.frequency = (i < freqValues.size()) ? freqValues[i] : 0.0;
         mode.irIntensity = (i < irValues.size()) ? irValues[i] : 0.0;
