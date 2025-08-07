@@ -1,0 +1,71 @@
+# AfakeG Configuration File
+# 配置与代码分离示例
+
+program:
+  name: "AfakeG"
+  version: "1.0"
+  author: "Bane Dysta & Claude 4.0"
+  description: "Generate fake Gaussian output from Amesp format"
+
+input:
+  # 支持的文件扩展名
+  extensions: [".out", ".log", ".aop"]
+  # 默认编码
+  encoding: "auto"
+  # 文件大小限制 (MB)
+  max_size: 1000
+
+output:
+  # 输出文件后缀
+  suffix: "_fake"
+  # 输出文件扩展名
+  extension: ".log"
+  # 输出格式版本
+  gaussian_version: "16"
+  # 精度设置
+  precision:
+    energy: 9
+    coordinate: 6
+    frequency: 4
+    intensity: 4
+
+parser:
+  name: "amesp"
+  # 解析选项
+  options:
+    # 是否解析优化步骤
+    parse_optimization: true
+    # 是否解析频率
+    parse_frequencies: true
+    # 是否解析热力学数据
+    parse_thermodynamics: true
+    # 是否解析法向模式
+    parse_normal_modes: true
+
+logging:
+  # 日志级别: DEBUG, INFO, WARNING, ERROR
+  level: "INFO"
+  # 是否输出到文件
+  log_to_file: false
+  # 日志文件名
+  log_file: "afakeg.log"
+
+# 高级选项
+advanced:
+  # 内存限制 (MB)
+  memory_limit: 512
+  # 并发处理线程数
+  threads: 1
+  # 临时文件目录
+  temp_dir: "/tmp"
+
+# 收敛阈值设置
+convergence:
+  rms_force: 3.0e-4
+  max_force: 4.5e-4
+  rms_displacement: 1.2e-3
+  max_displacement: 1.8e-3
+
+# 元素映射（如果需要自定义）
+# elements:
+#   custom_symbol: atomic_number 
