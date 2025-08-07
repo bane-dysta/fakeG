@@ -223,9 +223,7 @@ bool AmespParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
     string_utils::LineProcessor::resetToBeginning(file);
     
     // 首先尝试找到热力学摘要部分
-    bool foundThermoSection = false;
     if (string_utils::LineProcessor::findLine(file, ">>>>>>>>>>> Summary of Thermodynamic Quantities <<<<<<<<<<<<<")) {
-        foundThermoSection = true;
         data.thermoData.hasData = true;
         debugLog("找到热力学摘要部分");
     } else {

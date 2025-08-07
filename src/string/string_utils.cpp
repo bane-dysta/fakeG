@@ -170,6 +170,47 @@ int toInt(const std::string& str, int defaultValue) {
     }
 }
 
+bool isValidNumber(const std::string& str) {
+    if (str.empty()) return false;
+    
+    std::string cleanStr = str;
+    // 处理科学记数法中的D
+    std::replace(cleanStr.begin(), cleanStr.end(), 'D', 'E');
+    std::replace(cleanStr.begin(), cleanStr.end(), 'd', 'e');
+    
+    try {
+        std::stod(cleanStr);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+std::string removeQuotes(const std::string& str) {
+    std::string result = str;
+    
+    // 去除前导和尾随空白
+    size_t start = result.find_first_not_of(" \t");
+    if (start != std::string::npos) {
+        result = result.substr(start);
+    }
+    
+    size_t end = result.find_last_not_of(" \t");
+    if (end != std::string::npos) {
+        result = result.substr(0, end + 1);
+    }
+    
+    // 去除引号
+    if (result.length() >= 2) {
+        if ((result.front() == '\'' && result.back() == '\'') ||
+            (result.front() == '"' && result.back() == '"')) {
+            result = result.substr(1, result.length() - 2);
+        }
+    }
+    
+    return result;
+}
+
 // LineProcessor类实现
 bool LineProcessor::findLine(std::ifstream& file, const std::string& pattern) {
     std::string line;

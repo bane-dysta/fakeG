@@ -34,6 +34,10 @@ bool isNumber(const std::string& str);
 bool isInteger(const std::string& str);
 double toDouble(const std::string& str, double defaultValue = 0.0);
 int toInt(const std::string& str, int defaultValue = 0);
+bool isValidNumber(const std::string& str);
+
+// 引号处理
+std::string removeQuotes(const std::string& str);
 
 // 文件行处理函数
 class LineProcessor {
