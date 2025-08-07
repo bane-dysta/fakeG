@@ -42,13 +42,12 @@ set(AMESP_PARSER_SOURCES
 add_library(amesp_parser ${AMESP_PARSER_SOURCES})
 target_link_libraries(amesp_parser fakeg_core)
 
-# 暂时注释掉BDF相关部分
-# set(BDF_PARSER_SOURCES
-#     src/parsers/bdf_parser.cpp
-# )
+set(BDF_PARSER_SOURCES
+    src/parsers/bdf_parser.cpp
+)
 
-# add_library(bdf_parser ${BDF_PARSER_SOURCES})
-# target_link_libraries(bdf_parser fakeg_core)
+add_library(bdf_parser ${BDF_PARSER_SOURCES})
+target_link_libraries(bdf_parser fakeg_core)
 
 # 主应用程序库
 set(FAKEG_APP_SOURCES
@@ -63,14 +62,15 @@ add_executable(afakeg src/main/afake_g.cpp)
 target_link_libraries(afakeg fakeg_app amesp_parser)
 
 # 暂时注释掉BfakeG
-# BfakeG可执行文件
-# add_executable(bfakeg src/main/bfake_g.cpp)
-# target_link_libraries(bfakeg fakeg_app bdf_parser)
+# 创建BfakeG可执行文件
+add_executable(bfakeg src/main/bfake_g.cpp)
+target_link_libraries(bfakeg fakeg_core bdf_parser)
 
 # 安装配置
-install(TARGETS afakeg DESTINATION bin)
+install(TARGETS afakeg bfakeg DESTINATION bin)
 install(TARGETS fakeg_core DESTINATION lib)
 install(TARGETS amesp_parser DESTINATION lib)
+install(TARGETS bdf_parser DESTINATION lib)
 install(DIRECTORY config/ DESTINATION share/fakeg/config)
 install(FILES README.md DESTINATION share/doc/fakeg)
 
