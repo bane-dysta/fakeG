@@ -8,6 +8,9 @@ ElementMap::ElementMap() {
 }
 
 void ElementMap::initElementMap() {
+    // out of period table
+    elementMap["Bq"] = 0; // Ghost atom / Dummy atom
+    
     // Period 1
     elementMap["H"] = 1; elementMap["He"] = 2;
     
@@ -71,7 +74,7 @@ void ElementMap::initElementMap() {
 
 int ElementMap::getAtomicNumber(const std::string& symbol) const {
     auto it = elementMap.find(symbol);
-    return (it != elementMap.end()) ? it->second : 1; // 默认为氢原子
+    return (it != elementMap.end()) ? it->second : 0; // 不认识的默认为Bq
 }
 
 bool ElementMap::hasElement(const std::string& symbol) const {

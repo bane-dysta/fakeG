@@ -1,16 +1,21 @@
 # FakeG - 模块化量子化学输出转换工具
 
-## 项目简介
+## 项目概述
 
-FakeG是一个模块化的C++项目，用于将各种量子化学软件的输出文件转换为Gaussian格式的伪输出文件。该项目采用了现代C++设计，具有良好的可扩展性和可维护性。
+FakeG是一个模块化的C++项目，用于将各种量子化学软件的输出文件转换为伪Gaussian格式文件。该项目采用现代C++设计，具有出色的可扩展性和可维护性。
 
-## 项目特点
+**当前支持的格式：**
+- **AMESP** → AfakeG可执行文件
+- **BDF** → BfakeG可执行文件
 
-- **模块化设计**：代码组织清晰，各模块职责分明
-- **可扩展架构**：通过接口和工厂模式，轻松添加新的解析器
-- **配置分离**：支持YAML配置文件，代码与配置分离
-- **日志系统**：完整的日志管理，支持多级别输出
-- **跨平台**：支持Linux、Windows和macOS
+## 主要特点
+
+- **模块化设计**：代码组织清晰，各模块职责明确
+- **可扩展架构**：通过接口设计轻松添加新解析器
+- **跨平台支持**：支持Linux和Windows（通过交叉编译）
+- **静态链接**：多种链接选项，实现最大兼容性
+- **完整日志系统**：多级日志系统，支持调试
+- **虚原子支持**：将未知元素处理为Bq（虚原子）
 
 ## 项目结构
 
@@ -19,58 +24,74 @@ FakeG/
 ├── src/                    # 源代码目录
 │   ├── data/              # 数据结构模块
 │   │   ├── structures.h   # 数据结构定义
-│   │   └── structures.cpp # 数据结构实现
+│   │   └── structures.cpp # 元素映射和数据结构
 │   ├── io/                # IO模块
-│   │   ├── file_reader.h/cpp    # 文件读取
+│   │   ├── file_reader.h/cpp    # 文件读取，支持编码检测
 │   │   └── gaussian_writer.h/cpp # Gaussian格式输出
 │   ├── logger/            # 日志模块
-│   │   ├── logger.h
+│   │   ├── logger.h       # 多级日志系统
 │   │   └── logger.cpp
 │   ├── string/            # 字符串工具模块
-│   │   ├── string_utils.h
+│   │   ├── string_utils.h # 字符串处理工具
 │   │   └── string_utils.cpp
 │   ├── parsers/           # 解析器模块
-│   │   ├── parser_interface.h/cpp  # 解析器接口
-│   │   ├── amesp_parser.h/cpp      # AMESP解析器
-│   │   └── bdf_parser.h/cpp        # BDF解析器
+│   │   ├── parser_interface.h/cpp  # 解析器基础接口
+│   │   ├── amesp_parser.h/cpp      # AMESP格式解析器
+│   │   └── bdf_parser.h/cpp        # BDF格式解析器
 │   └── main/              # 主程序模块
-│       ├── fake_g_app.h/cpp        # 应用程序类
+│       ├── fake_g_app.h/cpp        # 应用程序框架
 │       ├── afake_g.cpp             # AfakeG主程序
 │       └── bfake_g.cpp             # BfakeG主程序
-├── config/                # 配置文件目录
-│   ├── afakeg.yaml       # AfakeG配置
-│   └── bfakeg.yaml       # BfakeG配置
-├── CMakeLists.txt        # CMake构建文件
+├── config/                # 配置文件
+├── build.sh              # 通用构建脚本
+├── build_windows.sh      # Windows交叉编译脚本
+├── CMakeLists.txt        # CMake构建配置
 └── README.md             # 项目文档
 ```
 
-## 编译安装
+## 构建项目
 
 ### 系统要求
 
 - CMake 3.16+
-- C++20兼容的编译器（GCC 10+, Clang 12+, MSVC 2019+）
+- C++20兼容编译器（GCC 10+, Clang 12+, MSVC 2019+）
+- Windows交叉编译需要：mingw-w64
 
-### 编译步骤
+### 快速构建
+
+```bash
+# 默认Linux构建（动态链接）
+./build.sh
+
+# 静态链接，提高可移植性
+./build.sh linux-static
+
+# 完全静态链接（包括glibc）
+./build.sh linux-full
+
+# Windows交叉编译
+./build.sh windows
+
+# 清理构建文件
+./build.sh clean
+
+# 显示帮助
+./build.sh help
+```
+
+### 手动构建
 
 ```bash
 # 创建构建目录
 mkdir build && cd build
 
-# 配置项目
-cmake ..
+# 配置（多种选项可用）
+cmake ..                          # 默认动态链接
+cmake -DSTATIC_LINKING=ON ..      # 部分静态链接
+cmake -DFULL_STATIC=ON ..         # 完全静态链接
+cmake -DWINDOWS_BUILD=ON ..       # Windows交叉编译
 
-# 编译
-make -j$(nproc)
-
-# 安装（可选）
-sudo make install
-```
-
-### Debug版本编译
-
-```bash
-cmake -DCMAKE_BUILD_TYPE=Debug ..
+# 构建
 make -j$(nproc)
 ```
 
@@ -79,90 +100,215 @@ make -j$(nproc)
 ### AfakeG (AMESP格式转换)
 
 ```bash
-# 基本用法
-./afakeg input.out
+# 交互模式（无参数）
+./afakeg
 
-# 开启调试模式
-./afakeg input.out --debug
-
-# 指定输出文件
-./afakeg input.out -o output.log
-
-# 显示帮助
+# 命令行模式
+./afakeg input.aop
+./afakeg input.aop --debug
+./afakeg input.aop -o output.log
 ./afakeg --help
 ```
 
 ### BfakeG (BDF格式转换)
 
 ```bash
-# 基本用法
-./bfakeg input.out
+# 交互模式
+./bfakeg
 
-# 开启调试模式  
+# 命令行模式
+./bfakeg input.out
 ./bfakeg input.out --debug
 ```
 
-## 扩展开发
+## 编写新解析器
 
-### 添加新解析器
+### 架构概述
 
-1. **创建解析器类**：继承`ParserInterface`
+FakeG架构使用**直接解析器注入**而非工厂模式。每个可执行文件都链接到特定的解析器，使设计简单明确。
+
+### 分步指南
+
+#### 1. 创建解析器头文件
+
+创建 `src/parsers/your_parser.h`：
 
 ```cpp
-// src/parsers/your_parser.h
 #pragma once
+
 #include "parser_interface.h"
+#include "../string/string_utils.h"
+
+namespace fakeg {
+namespace parsers {
 
 class YourParser : public ParserInterface {
 public:
-    bool parse(io::FileReader& reader, data::ParsedData& data) override;
-    std::string getParserName() const override { return "your_format"; }
-    std::string getParserVersion() const override { return "1.0"; }
-    std::string getFileExtension() const override { return ".your_ext"; }
+    YourParser();
     
+    // 必需的接口方法
+    bool parse(io::FileReader& reader, data::ParsedData& data) override;
+    bool validateInput(const std::string& filename) override;
+    
+    std::string getParserName() const override;
+    std::string getParserVersion() const override;
+    std::vector<std::string> getSupportedKeywords() const override;
+
 private:
     // 你的解析方法
+    bool parseOptimizationSteps(std::ifstream& file, data::ParsedData& data);
+    bool parseFrequencies(std::ifstream& file, data::ParsedData& data);
+    bool parseThermoData(std::ifstream& file, data::ParsedData& data);
+    
+    // 辅助方法
+    void parseGeometry(std::ifstream& file, std::vector<data::Atom>& atoms);
+    double parseEnergy(const std::string& line);
 };
+
+} // namespace parsers
+} // namespace fakeg
 ```
 
-2. **实现解析逻辑**：
+#### 2. 实现解析器逻辑
+
+创建 `src/parsers/your_parser.cpp`：
 
 ```cpp
-// src/parsers/your_parser.cpp
 #include "your_parser.h"
+#include "../string/string_utils.h"
+#include <sstream>
+
+namespace fakeg {
+namespace parsers {
+
+YourParser::YourParser() = default;
 
 bool YourParser::parse(io::FileReader& reader, data::ParsedData& data) {
-    auto& file = reader.getStream();
+    std::ifstream& file = reader.getStream();
     
-    // 解析几何结构
-    // 解析能量信息
-    // 解析频率数据
-    // ...
+    infoLog("开始解析YourFormat文件");
     
+    // 重置文件位置
+    string_utils::LineProcessor::resetToBeginning(file);
+    
+    // 检查优化
+    if (string_utils::LineProcessor::findLine(file, "YOUR_OPT_KEYWORD")) {
+        data.hasOpt = true;
+        infoLog("发现几何优化");
+        if (!parseOptimizationSteps(file, data)) {
+            errorLog("优化解析失败");
+            return false;
+        }
+    }
+    
+    // 解析频率
+    if (parseFrequencies(file, data)) {
+        data.hasFreq = true;
+        infoLog("频率解析完成");
+    }
+    
+    // 解析热力学数据
+    if (parseThermoData(file, data)) {
+        infoLog("热力学数据解析完成");
+    }
+    
+    return !data.optSteps.empty();
+}
+
+bool YourParser::validateInput(const std::string& filename) {
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        errorLog("无法打开文件: " + filename);
+        return false;
+    }
+    // 用户指定的文件总是用于转换
     return true;
 }
+
+std::string YourParser::getParserName() const {
+    return "YourParser";
+}
+
+std::string YourParser::getParserVersion() const {
+    return "1.0.0";
+}
+
+std::vector<std::string> YourParser::getSupportedKeywords() const {
+    return {"YOUR_OPT_KEYWORD", "YOUR_FREQ_KEYWORD", "YOUR_THERMO_KEYWORD"};
+}
+
+bool YourParser::parseOptimizationSteps(std::ifstream& file, data::ParsedData& data) {
+    string_utils::LineProcessor::resetToBeginning(file);
+    
+    std::string line;
+    while (std::getline(file, line)) {
+        if (string_utils::contains(line, "YOUR_STEP_MARKER")) {
+            data::OptStep step;
+            step.stepNumber = extractStepNumber(line);
+            step.energy = 0.0;
+            
+            // 解析此步骤的几何结构
+            parseGeometry(file, step.atoms);
+            
+            // 解析能量
+            step.energy = parseEnergy(line);
+            
+            // 解析收敛数据
+            // ... 你的收敛解析逻辑
+            
+            if (!step.atoms.empty()) {
+                data.optSteps.push_back(step);
+                debugLog("添加步骤 " + std::to_string(step.stepNumber) + 
+                        "，包含 " + std::to_string(step.atoms.size()) + " 个原子");
+            }
+        }
+    }
+    
+    return !data.optSteps.empty();
+}
+
+// 实现其他解析方法...
+
+} // namespace parsers
+} // namespace fakeg
 ```
 
-3. **注册解析器**：
+#### 3. 创建主可执行文件
+
+创建 `src/main/yourfake_g.cpp`：
 
 ```cpp
-// src/main/your_fake_g.cpp
-#include "your_parser.h"
+#include <iostream>
+#include "fake_g_app.h"
+#include "../parsers/your_parser.h"
+
+using namespace fakeg;
 
 int main(int argc, char* argv[]) {
-    // 注册你的解析器
-    parsers::ParserFactory::registerParser<YourParser>("your_format", ".your_ext");
+    // 创建你的解析器实例
+    auto parser = std::make_unique<parsers::YourParser>();
     
-    app::FakeGApp app;
-    app.setProgramInfo("YourFakeG", "1.0", "Your Name");
-    return app.run(argc, argv) ? 0 : 1;
+    // 创建注入解析器的应用程序
+    app::FakeGApp app(std::move(parser));
+    
+    // 设置程序信息
+    app.setProgramInfo("YourFakeG", "1.0.0", "你的名字");
+    
+    // 运行应用程序
+    if (app.run(argc, argv)) {
+        return 0;
+    } else {
+        return 1;
+    }
 }
 ```
 
-4. **更新CMakeLists.txt**：
+#### 4. 更新CMakeLists.txt
+
+在 `CMakeLists.txt` 中添加你的解析器：
 
 ```cmake
-# 添加解析器库
+# 添加你的解析器库
 set(YOUR_PARSER_SOURCES
     src/parsers/your_parser.cpp
 )
@@ -170,119 +316,167 @@ set(YOUR_PARSER_SOURCES
 add_library(your_parser ${YOUR_PARSER_SOURCES})
 target_link_libraries(your_parser fakeg_core)
 
-# 添加可执行文件
-add_executable(yourfakeg src/main/your_fake_g.cpp)
-target_link_libraries(yourfakeg fakeg_app your_parser)
+# 添加你的可执行文件
+add_executable(yourfakeg src/main/yourfake_g.cpp)
+target_link_libraries(yourfakeg fakeg_core your_parser)
+
+# 添加到安装目标
+install(TARGETS yourfakeg DESTINATION bin)
+install(TARGETS your_parser DESTINATION lib)
 ```
 
-### 配置文件支持
+### 关键解析概念
 
-创建配置文件`config/yourfakeg.yaml`：
+#### 数据结构
 
-```yaml
-program:
-  name: "YourFakeG"
-  version: "1.0"
-  author: "Your Name"
+你将使用的核心数据结构：
 
-input:
-  extensions: [".your_ext"]
-  encoding: "utf8"
+```cpp
+// 单个原子
+data::Atom atom;
+atom.symbol = "C";
+atom.atomicNumber = 6;  // 或0表示未知（Bq虚原子）
+atom.x = atom.y = atom.z = 0.0;
 
-output:
-  suffix: "_fake"
-  extension: ".log"
+// 优化步骤
+data::OptStep step;
+step.stepNumber = 1;
+step.energy = -123.456;
+step.atoms = {atom1, atom2, ...};
+step.converged = true;
 
-parser:
-  name: "your_format"
-  options:
-    parse_optimization: true
-    parse_frequencies: true
+// 频率模式
+data::FreqMode mode;
+mode.frequency = 1234.56;
+mode.irIntensity = 12.34;
+mode.irrep = "A1";
+mode.displacements = {{0.1, 0.2, 0.3}, ...}; // 每个原子 [x,y,z]
+
+// 完整的解析数据
+data::ParsedData data;
+data.hasOpt = true;
+data.hasFreq = true;
+data.optSteps = {step1, step2, ...};
+data.frequencies = {mode1, mode2, ...};
+data.thermoData = thermoData;
 ```
 
-## 核心模块说明
+#### 实用工具
 
-### 数据结构模块 (data/)
+```cpp
+// 字符串工具
+using namespace fakeg::string_utils;
 
-定义了所有解析器和输出器使用的通用数据结构：
-- `Atom`: 原子信息
-- `OptStep`: 优化步骤
-- `FreqMode`: 频率模式
-- `ThermoData`: 热力学数据
-- `ParsedData`: 解析结果容器
+std::string trimmed = trim("  text  ");
+std::vector<std::string> tokens = split("a,b,c", ',');
+double value = toDouble("123.45", 0.0);
+bool isNum = isValidNumber("1.23E-4");
 
-### IO模块 (io/)
+// 文件行处理
+LineProcessor::resetToBeginning(file);
+bool found = LineProcessor::findLine(file, "SEARCH_PATTERN");
+auto pos = LineProcessor::getPosition(file);
+LineProcessor::setPosition(file, pos);
 
-- **FileReader**: 文件读取，支持编码检测和转换
-- **GaussianWriter**: Gaussian格式输出，标准化格式
+// 元素映射
+int atomicNum = elementMap->getAtomicNumber("C");   // 返回6
+int unknown = elementMap->getAtomicNumber("Xyz");   // 返回0（Bq虚原子）
 
-### Logger模块 (logger/)
+// 日志记录
+debugLog("调试信息");
+infoLog("进度信息");
+errorLog("发生错误");
+```
 
-提供分级日志系统：
+#### 常见解析模式
+
+```cpp
+// 模式1：逐行解析
+std::string line;
+while (std::getline(file, line)) {
+    line = string_utils::trim(line);
+    
+    if (string_utils::contains(line, "ENERGY")) {
+        double energy = extractEnergyFromLine(line);
+        // ...
+    }
+}
+
+// 模式2：块解析
+if (string_utils::LineProcessor::findLine(file, "BEGIN_BLOCK")) {
+    while (std::getline(file, line)) {
+        if (string_utils::contains(line, "END_BLOCK")) break;
+        // 处理块内容
+    }
+}
+
+// 模式3：结构化数据解析
+std::istringstream iss(line);
+std::string element;
+double x, y, z;
+if (iss >> element >> x >> y >> z) {
+    // 成功解析原子坐标
+}
+```
+
+### 测试你的解析器
+
+1. **创建测试文件**，使用你的格式
+2. **构建你的可执行文件**：
+   ```bash
+   ./build.sh  # 或手动cmake/make
+   ```
+3. **使用调试输出测试**：
+   ```bash
+   ./yourfakeg test_file.ext --debug
+   ```
+4. **验证输出格式**是否符合Gaussian期望
+
+### 最佳实践
+
+1. **错误处理**：始终检查文件操作和解析结果
+2. **日志记录**：使用适当的日志级别（debug/info/error）
+3. **虚原子**：未知元素自动成为Bq（原子序数0）
+4. **文件位置**：在解析部分之间切换时重置文件位置
+5. **内存效率**：增量解析，不要将整个文件加载到内存中
+6. **验证**：在 `validateInput()` 中实现基本输入验证
+
+## 核心模块参考
+
+### 日志模块
 ```cpp
 #include "logger/logger.h"
 
-// 使用全局logger
-LOG_DEBUG("调试信息");
-LOG_INFO("普通信息");
-LOG_WARNING("警告信息"); 
-LOG_ERROR("错误信息");
-
-// 或使用logger实例
-logger::Logger myLogger(true); // 启用debug
-myLogger.debug("调试信息");
-myLogger.info("普通信息");
+// 通过解析器基类可用
+debugLog("详细调试信息");
+infoLog("进度更新");
+errorLog("错误消息");
 ```
 
-### 字符串工具模块 (string/)
-
-提供常用字符串处理功能：
+### 字符串工具
 ```cpp
 #include "string/string_utils.h"
 
-using namespace fakeg::string_utils;
+// 文本处理
+trim(), ltrim(), rtrim()
+split(), toLowerCase(), toUpperCase()
+startsWith(), endsWith(), contains()
+replace(), replaceAll()
 
-std::string trimmed = trim("  hello world  ");
-std::vector<std::string> tokens = split("a,b,c", ',');
-bool isNum = isNumber("123.45");
-double value = toDouble("123.45", 0.0);
+// 数字转换
+toDouble(), toInt(), isValidNumber()
+removeQuotes()  // 移除周围引号
+
+// 文件行处理
+LineProcessor::findLine()
+LineProcessor::resetToBeginning()
 ```
 
-## 项目设计理念
-
-### 1. 模块化架构
-每个模块职责单一，接口清晰，便于测试和维护。
-
-### 2. 接口导向
-使用抽象接口和工厂模式，支持运行时选择不同的实现。
-
-### 3. 配置分离
-核心逻辑与配置参数分离，支持不同环境下的灵活配置。
-
-### 4. 现代C++
-充分利用C++20特性，提供类型安全和性能优化。
-
-### 5. 错误处理
-完善的错误处理机制，提供详细的错误信息和调试支持。
-
-## 贡献指南
-
-1. Fork项目
-2. 创建特性分支：`git checkout -b feature/your-feature`
-3. 提交更改：`git commit -am 'Add your feature'`
-4. 推送分支：`git push origin feature/your-feature`  
-5. 提交Pull Request
-
-## 许可证
-
-本项目采用MIT许可证，详见LICENSE文件。
-
-## 联系方式
-
-- 作者：Bane Dysta
-- 项目主页：[项目仓库地址]
-- 问题反馈：[Issue页面地址]
+### 数据结构
+所有解析器都使用 `data/structures.h` 中定义的相同标准化数据结构，确保与Gaussian输出写入器的兼容性。
 
 ---
 
-**注意**：项目还在积极开发中，API可能会发生变化。建议在生产环境使用前充分测试。 
+## 联系方式
+
+作者：[Bane Dysta](https://bane-dysta.top/)

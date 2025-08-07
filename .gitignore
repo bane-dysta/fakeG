@@ -1,6 +1,7 @@
 build/*
 build_windows/*
 *.sh
+*.bat
 external/*
 examp
 rules.txt
