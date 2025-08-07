@@ -10,22 +10,22 @@ AmespParser::AmespParser() = default;
 bool AmespParser::parse(io::FileReader& reader, data::ParsedData& data) {
     auto& file = reader.getStream();
     
-    debugLog("开始解析AMESP文件: " + reader.getFilename());
+    debugLog("Starting AMESP file parsing: " + reader.getFilename());
     
     // 检查优化
     string_utils::LineProcessor::resetToBeginning(file);
     if (string_utils::LineProcessor::findLineFromBeginning(file, "Geom Opt Step:")) {
         data.hasOpt = true;
-        infoLog("发现几何优化");
+        infoLog("Found geometry optimization");
         if (!parseOptimizationSteps(file, data)) {
-            errorLog("优化步骤解析失败");
+            errorLog("Optimization steps parsing failed");
             return false;
         }
     } else {
         // 单点计算
-        infoLog("单点计算检测");
+        infoLog("Single point calculation detected");
         if (!parseSinglePoint(file, data)) {
-            errorLog("单点计算解析失败");
+            errorLog("Single point calculation parsing failed");
             return false;
         }
     }
@@ -33,15 +33,15 @@ bool AmespParser::parse(io::FileReader& reader, data::ParsedData& data) {
     // 解析频率
     if (parseFrequencies(file, data)) {
         data.hasFreq = true;
-        infoLog("频率解析完成");
+        infoLog("Frequency parsing completed");
     }
     
     // 解析热力学数据
     if (parseThermoData(file, data)) {
-        infoLog("热力学数据解析完成");
+        infoLog("Thermodynamic data parsing completed");
     }
     
-    debugLog("AMESP文件解析完成");
+    debugLog("AMESP file parsing completed");
     return true;
 }
 
@@ -49,7 +49,7 @@ bool AmespParser::validateInput(const std::string& filename) {
     // 只检查文件是否存在，不检查扩展名
     std::ifstream file(filename);
     if (!file.is_open()) {
-        errorLog("无法打开文件: " + filename);
+        errorLog("Cannot open file: " + filename);
         return false;
     }
     
@@ -84,7 +84,7 @@ bool AmespParser::parseOptimizationSteps(std::ifstream& file, data::ParsedData& 
             std::istringstream iss(line);
             std::string dummy1, dummy2, dummy3;
             if (iss >> dummy1 >> dummy2 >> dummy3 >> step.stepNumber) {
-                debugLog("处理优化步骤 " + std::to_string(step.stepNumber));
+                debugLog("Processing optimization step " + std::to_string(step.stepNumber));
             }
             
             // 查找并解析几何
@@ -101,13 +101,13 @@ bool AmespParser::parseOptimizationSteps(std::ifstream& file, data::ParsedData& 
             
             if (!step.atoms.empty()) {
                 data.optSteps.push_back(step);
-                debugLog("添加步骤 " + std::to_string(step.stepNumber) + 
-                        " 包含 " + std::to_string(step.atoms.size()) + " 个原子");
+                debugLog("Added step " + std::to_string(step.stepNumber) + 
+                        " containing " + std::to_string(step.atoms.size()) + " atoms");
             }
         }
     }
     
-    infoLog("总优化步骤: " + std::to_string(data.optSteps.size()));
+    infoLog("Total optimization steps: " + std::to_string(data.optSteps.size()));
     return !data.optSteps.empty();
 }
 
@@ -139,11 +139,11 @@ bool AmespParser::parseFrequencies(std::ifstream& file, data::ParsedData& data) 
     string_utils::LineProcessor::resetToBeginning(file);
     
     if (!string_utils::LineProcessor::findLineFromBeginning(file, "========================== Frequency ===========================")) {
-        debugLog("未找到频率分析");
+        debugLog("Frequency analysis not found");
         return false;
     }
     
-    debugLog("发现频率分析");
+    debugLog("Found frequency analysis");
     
     // 查找谐振频率
     if (!string_utils::LineProcessor::findLine(file, "Harmonic frequencies(cm-1):")) {
@@ -170,7 +170,7 @@ bool AmespParser::parseFrequencies(std::ifstream& file, data::ParsedData& data) 
         }
     }
     
-    debugLog("解析到 " + std::to_string(freqValues.size()) + " 个频率");
+    debugLog("Parsed " + std::to_string(freqValues.size()) + " frequencies");
     
     // 查找IR强度
     std::vector<double> irValues;
@@ -185,7 +185,7 @@ bool AmespParser::parseFrequencies(std::ifstream& file, data::ParsedData& data) 
                 double freq, intensity;
                 if (iss >> index >> freq >> intensity) {
                     irValues.push_back(intensity);
-                    debugLog("频率 " + std::to_string(i+1) + ": " + std::to_string(freq) + " cm-1, IR强度: " + std::to_string(intensity));
+                    debugLog("Frequency " + std::to_string(i+1) + ": " + std::to_string(freq) + " cm-1, IR intensity: " + std::to_string(intensity));
                 } else {
                     irValues.push_back(0.0);
                 }
@@ -194,7 +194,7 @@ bool AmespParser::parseFrequencies(std::ifstream& file, data::ParsedData& data) 
             }
         }
     } else {
-        debugLog("未找到IR光谱数据");
+        debugLog("IR spectrum data not found");
         // 如果没有找到IR数据，用0填充
         irValues.resize(freqValues.size(), 0.0);
     }
@@ -208,7 +208,7 @@ bool AmespParser::parseFrequencies(std::ifstream& file, data::ParsedData& data) 
         data.frequencies.push_back(mode);
     }
     
-    debugLog("频率解析完成，共 " + std::to_string(data.frequencies.size()) + " 个模式");
+    debugLog("Frequency parsing completed, " + std::to_string(data.frequencies.size()) + " modes");
     
     // 解析法向模式
     parseNormalModes(file, data);
@@ -225,7 +225,7 @@ bool AmespParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
     // 首先尝试找到热力学摘要部分
     if (string_utils::LineProcessor::findLine(file, ">>>>>>>>>>> Summary of Thermodynamic Quantities <<<<<<<<<<<<<")) {
         data.thermoData.hasData = true;
-        debugLog("找到热力学摘要部分");
+        debugLog("Found thermodynamic summary section");
     } else {
         // 如果没有找到摘要部分，从头开始查找单独的热力学值
         string_utils::LineProcessor::resetToBeginning(file);
@@ -245,7 +245,7 @@ bool AmespParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
             if (iss >> dummy >> temp) {
                 data.thermoData.temperature = temp;
                 data.thermoData.hasData = true;
-                debugLog("找到温度: " + std::to_string(temp) + " K");
+                debugLog("Found temperature: " + std::to_string(temp) + " K");
             }
         }
         // 解析压力
@@ -256,7 +256,7 @@ bool AmespParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
             if (iss >> dummy >> press) {
                 data.thermoData.pressure = press;
                 data.thermoData.hasData = true;
-                debugLog("找到压力: " + std::to_string(press) + " atm");
+                debugLog("Found pressure: " + std::to_string(press) + " atm");
             }
         }
         // 解析零点振动能
@@ -267,7 +267,7 @@ bool AmespParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
             if (iss >> dummy1 >> dummy2 >> dummy3 >> zpe) {
                 data.thermoData.zpe = zpe;
                 data.thermoData.hasData = true;
-                debugLog("找到零点能: " + std::to_string(zpe) + " Hartree");
+                debugLog("Found zero-point energy: " + std::to_string(zpe) + " Hartree");
             }
         }
         // 解析热力学修正到U(T) - 对应"Thermal correction to Energy"
@@ -278,7 +278,7 @@ bool AmespParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
             if (iss >> dummy1 >> dummy2 >> dummy3 >> dummy4 >> value) {
                 data.thermoData.thermalEnergyCorr = value;
                 data.thermoData.hasData = true;
-                debugLog("找到热力学修正到U(T): " + std::to_string(value) + " Hartree");
+                debugLog("Found thermal correction to U(T): " + std::to_string(value) + " Hartree");
             }
         }
         // 解析热力学修正到H(T) - 对应"Thermal correction to Enthalpy"
@@ -289,7 +289,7 @@ bool AmespParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
             if (iss >> dummy1 >> dummy2 >> dummy3 >> dummy4 >> value) {
                 data.thermoData.thermalEnthalpyCorr = value;
                 data.thermoData.hasData = true;
-                debugLog("找到热力学修正到H(T): " + std::to_string(value) + " Hartree");
+                debugLog("Found thermal correction to H(T): " + std::to_string(value) + " Hartree");
             }
         }
         // 解析热力学修正到G(T) - 对应"Thermal correction to Gibbs Free Energy"
@@ -300,7 +300,7 @@ bool AmespParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
             if (iss >> dummy1 >> dummy2 >> dummy3 >> dummy4 >> value) {
                 data.thermoData.thermalGibbsCorr = value;
                 data.thermoData.hasData = true;
-                debugLog("找到热力学修正到G(T): " + std::to_string(value) + " Hartree");
+                debugLog("Found thermal correction to G(T): " + std::to_string(value) + " Hartree");
             }
         }
         // 解析最终电子能量
@@ -311,20 +311,20 @@ bool AmespParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
             if (iss >> dummy1 >> dummy2 >> energy) {
                 data.thermoData.electronicEnergy = energy;
                 data.thermoData.hasData = true;
-                debugLog("找到最终能量: " + std::to_string(energy) + " Hartree");
+                debugLog("Found final energy: " + std::to_string(energy) + " Hartree");
             }
         }
     }
     
     if (data.thermoData.hasData) {
-        debugLog("热力学数据解析完成:");
-        debugLog("  温度: " + std::to_string(data.thermoData.temperature) + " K");
-        debugLog("  压力: " + std::to_string(data.thermoData.pressure) + " atm");
-        debugLog("  电子能量: " + std::to_string(data.thermoData.electronicEnergy) + " Hartree");
-        debugLog("  零点能: " + std::to_string(data.thermoData.zpe) + " Hartree");
-        debugLog("  热力学修正到能量: " + std::to_string(data.thermoData.thermalEnergyCorr) + " Hartree");
-        debugLog("  热力学修正到焓: " + std::to_string(data.thermoData.thermalEnthalpyCorr) + " Hartree");
-        debugLog("  热力学修正到Gibbs: " + std::to_string(data.thermoData.thermalGibbsCorr) + " Hartree");
+        debugLog("Thermodynamic data parsing completed:");
+        debugLog("  Temperature: " + std::to_string(data.thermoData.temperature) + " K");
+        debugLog("  Pressure: " + std::to_string(data.thermoData.pressure) + " atm");
+        debugLog("  Electronic energy: " + std::to_string(data.thermoData.electronicEnergy) + " Hartree");
+        debugLog("  Zero-point energy: " + std::to_string(data.thermoData.zpe) + " Hartree");
+        debugLog("  Thermal correction to energy: " + std::to_string(data.thermoData.thermalEnergyCorr) + " Hartree");
+        debugLog("  Thermal correction to enthalpy: " + std::to_string(data.thermoData.thermalEnthalpyCorr) + " Hartree");
+        debugLog("  Thermal correction to Gibbs: " + std::to_string(data.thermoData.thermalGibbsCorr) + " Hartree");
     }
     
     return data.thermoData.hasData;
@@ -357,8 +357,8 @@ void AmespParser::parseGeometry(std::ifstream& file, std::vector<data::Atom>& at
                 atom.z = z;
                 atoms.push_back(atom);
                 
-                debugLog("读取原子: " + element + " (" + std::to_string(atom.atomicNumber) +
-                        ") 在 (" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + ")");
+                debugLog("Read atom: " + element + " (" + std::to_string(atom.atomicNumber) +
+                        ") at (" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + ")");
             }
         }
     }
@@ -393,7 +393,7 @@ double AmespParser::parseEnergyFromCurrentPosition(std::ifstream& file) {
             if (pos != std::string::npos) {
                 std::string energyStr = string_utils::trim(line.substr(pos + 1));
                 energy = string_utils::toDouble(energyStr);
-                debugLog("发现能量 " + targetPattern + ": " + std::to_string(energy));
+                debugLog("Found energy " + targetPattern + ": " + std::to_string(energy));
                 return energy;
             }
         }
@@ -412,7 +412,7 @@ void AmespParser::parseConvergence(std::ifstream& file, data::OptStep& step) {
     // 查找收敛部分
     while (std::getline(file, line)) {
         if (line.find("Geometry Convergence:") != std::string::npos) {
-            debugLog("发现收敛部分，步骤 " + std::to_string(step.stepNumber));
+            debugLog("Found convergence section, step " + std::to_string(step.stepNumber));
             break;
         }
         if (line.find("Geom Opt Step:") != std::string::npos || 
@@ -459,10 +459,10 @@ void AmespParser::parseConvergence(std::ifstream& file, data::OptStep& step) {
     step.converged = (step.rmsGrad < 0.0003 && step.maxGrad < 0.00045 && 
                      step.rmsStep < 0.0012 && step.maxStep < 0.0018);
     
-    debugLog("步骤 " + std::to_string(step.stepNumber) + " 收敛信息: " +
-            "RMS梯度=" + std::to_string(step.rmsGrad) + ", " +
-            "最大梯度=" + std::to_string(step.maxGrad) + ", " +
-            "收敛=" + (step.converged ? "是" : "否"));
+    debugLog("Step " + std::to_string(step.stepNumber) + " convergence info: " +
+            "RMS gradient=" + std::to_string(step.rmsGrad) + ", " +
+            "Max gradient=" + std::to_string(step.maxGrad) + ", " +
+            "Converged=" + (step.converged ? "Yes" : "No"));
 }
 
 void AmespParser::parseNormalModes(std::ifstream& file, data::ParsedData& data) {
@@ -472,19 +472,19 @@ void AmespParser::parseNormalModes(std::ifstream& file, data::ParsedData& data) 
     string_utils::LineProcessor::resetToBeginning(file);
     
     if (!string_utils::LineProcessor::findLine(file, "Normal Modes:")) {
-        debugLog("未找到 Normal Modes 部分");
+        debugLog("Normal Modes section not found");
         return;
     }
     
     if (data.optSteps.empty()) {
-        debugLog("没有几何信息，无法解析法向模式");
+        debugLog("No geometry information, cannot parse normal modes");
         return;
     }
     
     int nAtoms = data.optSteps.back().atoms.size();
     int nFreqs = data.frequencies.size();
     
-    debugLog("开始解析法向模式，原子数: " + std::to_string(nAtoms) + "，频率数: " + std::to_string(nFreqs));
+    debugLog("Starting normal mode parsing, number of atoms: " + std::to_string(nAtoms) + ", number of frequencies: " + std::to_string(nFreqs));
     
     // 初始化位移向量
     for (int i = 0; i < nFreqs; i++) {
@@ -540,7 +540,7 @@ void AmespParser::parseNormalModes(std::ifstream& file, data::ParsedData& data) 
         }
     }
     
-    debugLog("法向模式解析完成，处理了 " + std::to_string(nFreqs) + " 个频率");
+    debugLog("Normal mode parsing completed, processed " + std::to_string(nFreqs) + " frequencies");
 }
 
 bool AmespParser::findOptimizationSection(std::ifstream& file) {

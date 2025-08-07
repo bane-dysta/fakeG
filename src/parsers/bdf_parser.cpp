@@ -11,23 +11,23 @@ BdfParser::BdfParser() = default;
 bool BdfParser::parse(io::FileReader& reader, data::ParsedData& data) {
     std::ifstream& file = reader.getStream();
     
-    infoLog("开始解析BDF文件");
+    infoLog("Starting BDF file parsing");
     
     // 检查是否是优化计算
     string_utils::LineProcessor::resetToBeginning(file);
     if (findOptimizationSection(file)) {
         data.hasOpt = true;
-        infoLog("发现几何优化");
+        infoLog("Found geometry optimization");
         if (!parseOptimizationSteps(file, data)) {
-            errorLog("优化步骤解析失败");
+            errorLog("Optimization steps parsing failed");
             return false;
         }
-        infoLog("总优化步骤: " + std::to_string(data.optSteps.size()));
+        infoLog("Total optimization steps: " + std::to_string(data.optSteps.size()));
     } else {
         // 单点计算
-        infoLog("单点计算检测");
+        infoLog("Single point calculation detected");
         if (!parseSinglePoint(file, data)) {
-            errorLog("单点计算解析失败");
+            errorLog("Single point calculation parsing failed");
             return false;
         }
     }
@@ -35,12 +35,12 @@ bool BdfParser::parse(io::FileReader& reader, data::ParsedData& data) {
     // 解析频率
     if (parseFrequencies(file, data)) {
         data.hasFreq = true;
-        infoLog("频率解析完成");
+        infoLog("Frequency parsing completed");
     }
     
     // 解析热力学数据
     if (parseThermoData(file, data)) {
-        infoLog("热力学数据解析完成");
+        infoLog("Thermodynamic data parsing completed");
     }
     
     return !data.optSteps.empty();
@@ -50,7 +50,7 @@ bool BdfParser::validateInput(const std::string& filename) {
     // 只检查文件是否存在，不检查扩展名
     std::ifstream file(filename);
     if (!file.is_open()) {
-        errorLog("无法打开文件: " + filename);
+        errorLog("Cannot open file: " + filename);
         return false;
     }
     
@@ -98,7 +98,7 @@ bool BdfParser::parseOptimizationSteps(std::ifstream& file, data::ParsedData& da
             if (pos != std::string::npos) {
                 std::string stepStr = string_utils::trim(line.substr(pos + 1));
                 step.stepNumber = string_utils::toInt(stepStr, 1);
-                debugLog("处理优化步骤 " + std::to_string(step.stepNumber));
+                debugLog("Processing optimization step " + std::to_string(step.stepNumber));
             }
             
             // 解析几何
@@ -109,8 +109,8 @@ bool BdfParser::parseOptimizationSteps(std::ifstream& file, data::ParsedData& da
             
             if (!step.atoms.empty()) {
                 data.optSteps.push_back(step);
-                debugLog("添加步骤 " + std::to_string(step.stepNumber) + "，包含 " + 
-                        std::to_string(step.atoms.size()) + " 个原子，能量 = " + std::to_string(step.energy));
+                debugLog("Added step " + std::to_string(step.stepNumber) + ", containing " + 
+                        std::to_string(step.atoms.size()) + " atoms, energy = " + std::to_string(step.energy));
             }
         }
     }
@@ -140,7 +140,7 @@ void BdfParser::parseGeometryStep(std::ifstream& file, data::OptStep& step) {
     
     // 查找 "Atom         Coord" 部分
     if (!string_utils::LineProcessor::findLine(file, "Atom         Coord")) {
-        debugLog("警告: 步骤 " + std::to_string(step.stepNumber) + " 找不到 Atom Coord 部分");
+        debugLog("Warning: Step " + std::to_string(step.stepNumber) + " could not find Atom Coord section");
         return;
     }
     
@@ -174,8 +174,8 @@ void BdfParser::parseGeometryStep(std::ifstream& file, data::OptStep& step) {
             atom.z = z;
             step.atoms.push_back(atom);
             
-            debugLog("步骤 " + std::to_string(step.stepNumber) + " - 读取原子: " + element + 
-                    " (" + std::to_string(atom.atomicNumber) + ") 位于 (" + 
+            debugLog("Step " + std::to_string(step.stepNumber) + " - Reading atom: " + element + 
+                    " (" + std::to_string(atom.atomicNumber) + ") at (" + 
                     std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + ")");
         }
     }
@@ -214,7 +214,7 @@ void BdfParser::parseConvergence(std::ifstream& file, data::OptStep& step) {
             
             if (iss >> step.rmsGrad >> step.maxGrad >> step.rmsStep >> step.maxStep) {
                 foundConvergence = true;
-                debugLog("步骤 " + std::to_string(step.stepNumber) + " 收敛: RMS Grad=" + std::to_string(step.rmsGrad) + 
+                debugLog("Step " + std::to_string(step.stepNumber) + " converged: RMS Grad=" + std::to_string(step.rmsGrad) + 
                         ", Max Grad=" + std::to_string(step.maxGrad) + ", RMS Step=" + std::to_string(step.rmsStep) + 
                         ", Max Step=" + std::to_string(step.maxStep));
             } else {
@@ -223,7 +223,7 @@ void BdfParser::parseConvergence(std::ifstream& file, data::OptStep& step) {
                     std::istringstream iss2(line);
                     if (iss2 >> step.rmsGrad >> step.maxGrad >> step.rmsStep >> step.maxStep) {
                         foundConvergence = true;
-                        debugLog("步骤 " + std::to_string(step.stepNumber) + " 收敛 (下一行): RMS Grad=" + std::to_string(step.rmsGrad) + 
+                        debugLog("Step " + std::to_string(step.stepNumber) + " converged (next line): RMS Grad=" + std::to_string(step.rmsGrad) + 
                                 ", Max Grad=" + std::to_string(step.maxGrad) + ", RMS Step=" + std::to_string(step.rmsStep) + 
                                 ", Max Step=" + std::to_string(step.maxStep));
                     }
@@ -241,7 +241,7 @@ void BdfParser::parseConvergence(std::ifstream& file, data::OptStep& step) {
     }
     
     if (!foundConvergence) {
-        debugLog("警告: 步骤 " + std::to_string(step.stepNumber) + " 未找到收敛数据");
+        debugLog("Warning: Step " + std::to_string(step.stepNumber) + " did not find convergence data");
     }
     
     // 检查此步骤是否收敛
@@ -253,11 +253,11 @@ bool BdfParser::parseFrequencies(std::ifstream& file, data::ParsedData& data) {
     string_utils::LineProcessor::resetToBeginning(file);
     
     if (!findFrequencySection(file)) {
-        debugLog("未找到频率分析");
+        debugLog("Frequency analysis not found");
         return false;
     }
     
-    debugLog("发现频率分析");
+    debugLog("Found frequency analysis");
     
     // 跳过表头行
     std::string line;
@@ -280,7 +280,7 @@ bool BdfParser::parseFrequencies(std::ifstream& file, data::ParsedData& data) {
         }
     }
     
-    infoLog("解析频率总数: " + std::to_string(data.frequencies.size()));
+    infoLog("Total frequency parsed: " + std::to_string(data.frequencies.size()));
     
     return !data.frequencies.empty();
 }
@@ -347,7 +347,7 @@ void BdfParser::parseFrequencyBlock(std::ifstream& file, int nFreqs, data::Parse
     // 读取原子位移
     if (!data.optSteps.empty()) {
         int nAtoms = data.optSteps.back().atoms.size();
-        debugLog("预期 " + std::to_string(nAtoms) + " 个原子的位移数据");
+        debugLog("Expected " + std::to_string(nAtoms) + " atomic displacements");
         
         // 为此块中的所有频率初始化位移向量
         for (int i = 0; i < nFreqs; i++) {
@@ -362,32 +362,32 @@ void BdfParser::parseFrequencyBlock(std::ifstream& file, int nFreqs, data::Parse
         
         // 跳过表头行（通常包含 "Atom  ZA               X         Y         Z"）
         std::getline(file, line);
-        debugLog("读取潜在表头行: " + line);
+        debugLog("Reading potential header line: " + line);
         
         if (string_utils::contains(line, "Atom") && string_utils::contains(line, "ZA")) {
-            debugLog("确认表头行，跳过");
+            debugLog("Confirmed header line, skipping");
             // 这是表头行，读取所有原子
             for (int iatom = 0; iatom < nAtoms; iatom++) {
                 if (std::getline(file, line)) {
-                    debugLog("读取原子 " + std::to_string(iatom + 1) + " 数据: " + line);
+                    debugLog("Reading atom " + std::to_string(iatom + 1) + " data: " + line);
                     parseAtomDisplacements(line, startIdx, nFreqs, data);
                 } else {
-                    debugLog("警告: 无法读取原子 " + std::to_string(iatom + 1) + " 的位移数据");
+                    debugLog("Warning: Could not read displacement data for atom " + std::to_string(iatom + 1));
                     break;
                 }
             }
         } else {
-            debugLog("不是表头行，作为第一个原子数据处理");
+            debugLog("Not a header line, treating as first atom data");
             // 这不是表头行，作为原子数据处理
             parseAtomDisplacements(line, startIdx, nFreqs, data);
             
             // 读取剩余的原子位移数据
             for (int iatom = 1; iatom < nAtoms; iatom++) {
                 if (std::getline(file, line)) {
-                    debugLog("读取原子 " + std::to_string(iatom + 1) + " 数据: " + line);
+                    debugLog("Reading atom " + std::to_string(iatom + 1) + " data: " + line);
                     parseAtomDisplacements(line, startIdx, nFreqs, data);
                 } else {
-                    debugLog("警告: 无法读取原子 " + std::to_string(iatom + 1) + " 的位移数据");
+                    debugLog("Warning: Could not read displacement data for atom " + std::to_string(iatom + 1));
                     break;
                 }
             }
@@ -396,7 +396,7 @@ void BdfParser::parseFrequencyBlock(std::ifstream& file, int nFreqs, data::Parse
     
     // 跳过空行
     std::getline(file, line);
-    debugLog("跳过空行: " + line);
+    debugLog("Skipping empty line: " + line);
 }
 
 std::vector<double> BdfParser::parseValuesFromLine(const std::string& line, int nVals) {
@@ -424,11 +424,11 @@ void BdfParser::parseAtomDisplacements(const std::string& line, int startIdx, in
     
     // 读取原子编号和 ZA
     if (!(iss >> atomNum >> za)) {
-        debugLog("警告: 无法从行中解析原子编号和 ZA: " + line);
+        debugLog("Warning: Could not parse atom number and ZA from line: " + line);
         return;
     }
     
-    debugLog("解析原子 " + std::to_string(atomNum) + " (ZA=" + std::to_string(za) + ") 的位移");
+    debugLog("Parsing atom " + std::to_string(atomNum) + " (ZA=" + std::to_string(za) + ") displacements");
     
     // 读取每个频率的位移向量
     for (int ifreq = 0; ifreq < nFreqs && (startIdx + ifreq) < static_cast<int>(data.frequencies.size()); ifreq++) {
@@ -441,13 +441,13 @@ void BdfParser::parseAtomDisplacements(const std::string& line, int startIdx, in
                 data.frequencies[startIdx + ifreq].displacements[atomIdx][1] = y;
                 data.frequencies[startIdx + ifreq].displacements[atomIdx][2] = z;
                 
-                debugLog("  频率 " + std::to_string(startIdx + ifreq + 1) + ", 原子 " + std::to_string(atomNum) + 
+                debugLog("   Frequency " + std::to_string(startIdx + ifreq + 1) + ", Atom " + std::to_string(atomNum) + 
                         ": (" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + ")");
             } else {
-                debugLog("警告: 原子索引 " + std::to_string(atomIdx) + " 对于位移存储无效");
+                debugLog("Warning: Invalid atom index " + std::to_string(atomIdx) + " for displacement storage");
             }
         } else {
-            debugLog("警告: 无法解析原子 " + std::to_string(atomNum) + " 频率 " + std::to_string(ifreq + 1) + " 的位移值");
+            debugLog("Warning: Could not parse atom " + std::to_string(atomNum) + " frequency " + std::to_string(ifreq + 1) + " displacement values");
             break;
         }
     }
@@ -467,19 +467,19 @@ bool BdfParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
     }
     
     if (!foundThermoSection) {
-        debugLog("未找到热力学数据");
+        debugLog("Thermodynamic data not found");
         return false;
     }
     
     data.thermoData.hasData = true;
-    debugLog("找到热力学数据");
+    debugLog("Found thermodynamic data");
     
     // 从当前位置继续读取
     while (std::getline(file, line)) {
         // 去除前导/尾随空白
         line = string_utils::trim(line);
         
-        debugLog("处理热力学行: '" + line + "'");
+        debugLog("Processing thermodynamic line: '" + line + "'");
         
         // 解析电子能量 - 格式: "Electronic total energy   :        -1.170752    Hartree"
         if (string_utils::contains(line, "Electronic total energy") && string_utils::contains(line, ":")) {
@@ -491,7 +491,7 @@ bool BdfParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
             double value;
             if (iss >> value) {
                 data.thermoData.electronicEnergy = value;
-                debugLog("解析电子能量: " + std::to_string(data.thermoData.electronicEnergy));
+                debugLog("Parsed electronic energy: " + std::to_string(data.thermoData.electronicEnergy));
             }
         }
         
@@ -510,7 +510,7 @@ bool BdfParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
                         std::string tempStr = line.substr(eqPos + 1, kelvinPos - eqPos - 1);
                         // 解析数值
                         data.thermoData.temperature = string_utils::toDouble(string_utils::trim(tempStr), 298.15);
-                        debugLog("解析温度: " + std::to_string(data.thermoData.temperature));
+                        debugLog("Parsed temperature: " + std::to_string(data.thermoData.temperature));
                     }
                 }
             }
@@ -524,7 +524,7 @@ bool BdfParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
                     if (atmPos != std::string::npos) {
                         std::string pressStr = line.substr(eqPos + 1, atmPos - eqPos - 1);
                         data.thermoData.pressure = string_utils::toDouble(string_utils::trim(pressStr), 1.0);
-                        debugLog("解析压力: " + std::to_string(data.thermoData.pressure));
+                        debugLog("Parsed pressure: " + std::to_string(data.thermoData.pressure));
                     }
                 }
             }
@@ -539,7 +539,7 @@ bool BdfParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
             double value;
             if (iss >> value) {
                 data.thermoData.zpe = value;
-                debugLog("解析零点能量: " + std::to_string(data.thermoData.zpe));
+                debugLog("Parsed zero-point energy: " + std::to_string(data.thermoData.zpe));
             }
         }
         
@@ -552,7 +552,7 @@ bool BdfParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
             double value;
             if (iss >> value) {
                 data.thermoData.thermalEnergyCorr = value;
-                debugLog("解析热力学修正到能量: " + std::to_string(data.thermoData.thermalEnergyCorr));
+                debugLog("Parsed thermal correction to energy: " + std::to_string(data.thermoData.thermalEnergyCorr));
             }
         }
         
@@ -565,7 +565,7 @@ bool BdfParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
             double value;
             if (iss >> value) {
                 data.thermoData.thermalEnthalpyCorr = value;
-                debugLog("解析热力学修正到焓: " + std::to_string(data.thermoData.thermalEnthalpyCorr));
+                debugLog("Parsed thermal correction to enthalpy: " + std::to_string(data.thermoData.thermalEnthalpyCorr));
             }
         }
         
@@ -578,7 +578,7 @@ bool BdfParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
             double value;
             if (iss >> value) {
                 data.thermoData.thermalGibbsCorr = value;
-                debugLog("解析热力学修正到Gibbs自由能: " + std::to_string(data.thermoData.thermalGibbsCorr));
+                debugLog("Parsed thermal correction to Gibbs free energy: " + std::to_string(data.thermoData.thermalGibbsCorr));
             }
         }
         
@@ -592,7 +592,7 @@ bool BdfParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
             if (iss >> word1 >> word2 >> value >> tolerance >> converged) {
                 data.thermoData.maxDeltaX = value;
                 data.thermoData.hasConvergenceData = true;
-                debugLog("解析最大 Delta-X: " + std::to_string(data.thermoData.maxDeltaX));
+                debugLog("Parsed maximum Delta-X: " + std::to_string(data.thermoData.maxDeltaX));
             }
         }
         else if (string_utils::contains(line, "RMS Delta-X")) {
@@ -603,7 +603,7 @@ bool BdfParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
             
             if (iss >> word1 >> word2 >> value >> tolerance >> converged) {
                 data.thermoData.rmsDeltaX = value;
-                debugLog("解析 RMS Delta-X: " + std::to_string(data.thermoData.rmsDeltaX));
+                debugLog("Parsed RMS Delta-X: " + std::to_string(data.thermoData.rmsDeltaX));
             }
         }
         else if (string_utils::contains(line, "Maximum Force") && !string_utils::contains(line, "Delta-X")) {
@@ -614,7 +614,7 @@ bool BdfParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
             
             if (iss >> word1 >> word2 >> value >> tolerance >> converged) {
                 data.thermoData.maxForce = value;
-                debugLog("解析最大力: " + std::to_string(data.thermoData.maxForce));
+                debugLog("Parsed maximum force: " + std::to_string(data.thermoData.maxForce));
             }
         }
         else if (string_utils::contains(line, "RMS Force")) {
@@ -625,7 +625,7 @@ bool BdfParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
             
             if (iss >> word1 >> word2 >> value >> tolerance >> converged) {
                 data.thermoData.rmsForce = value;
-                debugLog("解析 RMS 力: " + std::to_string(data.thermoData.rmsForce));
+                debugLog("Parsed RMS force: " + std::to_string(data.thermoData.rmsForce));
             }
         }
         else if (string_utils::contains(line, "Expected Delta-E")) {
@@ -640,40 +640,40 @@ bool BdfParser::parseThermoData(std::ifstream& file, data::ParsedData& data) {
                 std::replace(valueStr.begin(), valueStr.end(), 'D', 'E');
                 try {
                     data.thermoData.expectedDeltaE = std::stod(valueStr);
-                    debugLog("解析预期 Delta-E: " + std::to_string(data.thermoData.expectedDeltaE));
+                    debugLog("Parsed expected Delta-E: " + std::to_string(data.thermoData.expectedDeltaE));
                 } catch (...) {
-                    debugLog("解析预期 Delta-E 失败: " + valueStr);
+                    debugLog("Failed to parse expected Delta-E: " + valueStr);
                 }
             }
         }
         
         // 当到达下一个主要部分时停止 - 使用更具体的标记
         if (string_utils::contains(line, "UniMoVib job terminated")) {
-            debugLog("到达热力学部分结尾: " + line);
+            debugLog("Reached end of thermodynamic section: " + line);
             break;
         }
     }
     
     // 打印解析数据的摘要用于调试
     if (data.thermoData.hasData) {
-        debugLog("\n=== 热力学数据摘要 ===");
-        debugLog("有数据: " + std::string(data.thermoData.hasData ? "true" : "false"));
-        debugLog("温度: " + std::to_string(data.thermoData.temperature) + " K");
-        debugLog("压力: " + std::to_string(data.thermoData.pressure) + " atm");
-        debugLog("电子能量: " + std::to_string(data.thermoData.electronicEnergy) + " Hartree");
-        debugLog("零点能量: " + std::to_string(data.thermoData.zpe) + " Hartree");
-        debugLog("热力学修正到能量: " + std::to_string(data.thermoData.thermalEnergyCorr) + " Hartree");
-        debugLog("热力学修正到焓: " + std::to_string(data.thermoData.thermalEnthalpyCorr) + " Hartree");
-        debugLog("热力学修正到Gibbs: " + std::to_string(data.thermoData.thermalGibbsCorr) + " Hartree");
+        debugLog("\n=== Thermodynamic Data Summary ===");
+        debugLog("Has data: " + std::string(data.thermoData.hasData ? "true" : "false"));
+        debugLog("Temperature: " + std::to_string(data.thermoData.temperature) + " K");
+        debugLog("Pressure: " + std::to_string(data.thermoData.pressure) + " atm");
+        debugLog("Electronic energy: " + std::to_string(data.thermoData.electronicEnergy) + " Hartree");
+        debugLog("Zero-point energy: " + std::to_string(data.thermoData.zpe) + " Hartree");
+        debugLog("Thermal correction to energy: " + std::to_string(data.thermoData.thermalEnergyCorr) + " Hartree");
+        debugLog("Thermal correction to enthalpy: " + std::to_string(data.thermoData.thermalEnthalpyCorr) + " Hartree");
+        debugLog("Thermal correction to Gibbs: " + std::to_string(data.thermoData.thermalGibbsCorr) + " Hartree");
         
-        debugLog("\n=== 收敛数据摘要 ===");
-        debugLog("有收敛数据: " + std::string(data.thermoData.hasConvergenceData ? "true" : "false"));
+        debugLog("\n=== Convergence Data Summary ===");
+        debugLog("Has convergence data: " + std::string(data.thermoData.hasConvergenceData ? "true" : "false"));
         if (data.thermoData.hasConvergenceData) {
-            debugLog("最大 Delta-X: " + std::to_string(data.thermoData.maxDeltaX));
+            debugLog("Maximum Delta-X: " + std::to_string(data.thermoData.maxDeltaX));
             debugLog("RMS Delta-X: " + std::to_string(data.thermoData.rmsDeltaX));
-            debugLog("最大力: " + std::to_string(data.thermoData.maxForce));
-            debugLog("RMS 力: " + std::to_string(data.thermoData.rmsForce));
-            debugLog("预期 Delta-E: " + std::to_string(data.thermoData.expectedDeltaE));
+            debugLog("Maximum force: " + std::to_string(data.thermoData.maxForce));
+            debugLog("RMS force: " + std::to_string(data.thermoData.rmsForce));
+            debugLog("Expected Delta-E: " + std::to_string(data.thermoData.expectedDeltaE));
         }
         debugLog("=================================");
     }
