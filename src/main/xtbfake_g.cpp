@@ -1,5 +1,5 @@
 #include <iostream>
-#include <memory>
+#include <string>
 #include "fake_g_app.h"
 #include "../parsers/xtb_parser.h"
 #include "../string/string_utils.h"
@@ -7,44 +7,49 @@
 using namespace fakeg;
 
 int main(int argc, char* argv[]) {
-    try {
-        if (argc == 1) {
-            // 交互模式
-            std::cout << "XtbfakeG: Convert XTB Gaussian format output to fake Gaussian format" << std::endl;
-            std::cout << "Author: Bane Dysta & Claude 4.0" << std::endl;
-            std::cout << std::endl;
-            
-            std::string inputFile;
-            std::cout << "Please enter XTB Gaussian format output file path: ";
-            std::getline(std::cin, inputFile);
-            inputFile = string_utils::removeQuotes(inputFile);
-            
-            if (inputFile.empty()) {
-                std::cerr << "Error: No input file specified" << std::endl;
-                return 1;
-            }
-            
-            // 创建解析器和应用程序
-            auto parser = std::make_unique<parsers::XtbParser>();
-            app::FakeGApp app(std::move(parser));
-            
-            // 构造新的argv数组
-            char* newArgv[] = {const_cast<char*>("xtbfakeg"), const_cast<char*>(inputFile.c_str())};
-            int newArgc = 2;
-            
-            // 运行转换
-            return app.run(newArgc, newArgv) ? 0 : 1;
-            
-        } else {
-            // 命令行模式
-            auto parser = std::make_unique<parsers::XtbParser>();
-            app::FakeGApp app(std::move(parser));
-            
-            return app.run(argc, argv) ? 0 : 1;
+    // 创建 XTB 解析器
+    auto parser = std::make_unique<parsers::XtbParser>();
+    
+    // 创建应用程序实例
+    app::FakeGApp app(std::move(parser));
+    
+    // 设置程序信息
+    app.setProgramInfo("XtbfakeG", "1.0.0", "Bane Dysta & Claude 4.0");
+    
+    // 如果没有提供命令行参数，则交互式获取输入文件
+    if (argc == 1) {
+        std::cout << "XtbfakeG: Convert XTB Gaussian format output to fake Gaussian format" << std::endl;
+        std::cout << "Author: Bane Dysta & Claude 4.0" << std::endl;
+        std::cout << std::endl;
+        
+        std::string inputFile;
+        std::cout << "Please enter XTB Gaussian format output file path: ";
+        std::getline(std::cin, inputFile);
+        
+        // 处理引号
+        inputFile = string_utils::removeQuotes(inputFile);
+        
+        if (inputFile.empty()) {
+            std::cerr << "Error: No input file provided" << std::endl;
+            return 1;
         }
         
-    } catch (const std::exception& e) {
-        std::cerr << "Fatal error: " << e.what() << std::endl;
-        return 1;
+        // 构造新的argv数组
+        char* newArgv[] = {argv[0], const_cast<char*>(inputFile.c_str())};
+        int newArgc = 2;
+        
+        // 运行程序
+        if (app.run(newArgc, newArgv)) {
+            return 0;
+        } else {
+            return 1;
+        }
+    } else {
+        // 有命令行参数，正常运行
+        if (app.run(argc, argv)) {
+            return 0;
+        } else {
+            return 1;
+        }
     }
 } 

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 #include "fake_g_app.h"
 #include "../parsers/xyz_parser.h"
 #include "../string/string_utils.h"
@@ -6,23 +7,23 @@
 using namespace fakeg;
 
 int main(int argc, char* argv[]) {
-    // 创建XYZ解析器实例
+    // 创建 XYZ 解析器
     auto parser = std::make_unique<parsers::XyzParser>();
     
-    // 创建注入解析器的应用程序
+    // 创建应用程序实例
     app::FakeGApp app(std::move(parser));
     
     // 设置程序信息
     app.setProgramInfo("XfakeG", "1.0.0", "Bane Dysta & Claude 4.0");
     
-    // 如果没有提供参数，进入交互模式
-    if (argc < 2) {
+    // 如果没有提供命令行参数，则交互式获取输入文件
+    if (argc == 1) {
         std::cout << "XfakeG: Convert XYZ/TRJ trajectory to fake Gaussian format" << std::endl;
         std::cout << "Author: Bane Dysta & Claude 4.0" << std::endl;
         std::cout << std::endl;
-        std::cout << "Please enter XYZ/TRJ trajectory file path: ";
         
         std::string inputFile;
+        std::cout << "Please enter XYZ/TRJ trajectory file path: ";
         std::getline(std::cin, inputFile);
         
         // 处理引号
@@ -33,22 +34,22 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         
-        // 创建临时参数数组
-        char* tempArgv[] = {argv[0], const_cast<char*>(inputFile.c_str())};
-        int tempArgc = 2;
+        // 构造新的argv数组
+        char* newArgv[] = {argv[0], const_cast<char*>(inputFile.c_str())};
+        int newArgc = 2;
         
-        // 运行应用程序
-        if (app.run(tempArgc, tempArgv)) {
+        // 运行程序
+        if (app.run(newArgc, newArgv)) {
             return 0;
         } else {
             return 1;
         }
-    }
-    
-    // 运行应用程序
-    if (app.run(argc, argv)) {
-        return 0;
     } else {
-        return 1;
+        // 有命令行参数，正常运行
+        if (app.run(argc, argv)) {
+            return 0;
+        } else {
+            return 1;
+        }
     }
 } 
