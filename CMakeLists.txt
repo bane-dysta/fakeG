@@ -99,12 +99,16 @@ set(XYZ_PARSER_SOURCES
 add_library(xyz_parser ${XYZ_PARSER_SOURCES})
 target_link_libraries(xyz_parser fakeg_core)
 
-# 主应用程序库
-set(FAKEG_APP_SOURCES
+# 创建xtb_parser库
+add_library(xtb_parser STATIC
+    src/parsers/xtb_parser.cpp
+)
+target_link_libraries(xtb_parser fakeg_core)
+
+# 创建应用程序框架库
+add_library(fakeg_app STATIC
     src/main/fake_g_app.cpp
 )
-
-add_library(fakeg_app ${FAKEG_APP_SOURCES})
 target_link_libraries(fakeg_app fakeg_core)
 
 # AfakeG可执行文件
@@ -117,7 +121,11 @@ target_link_libraries(bfakeg fakeg_core bdf_parser)
 
 # XfakeG executable
 add_executable(xfakeg src/main/xfake_g.cpp)
-target_link_libraries(xfakeg fakeg_core xyz_parser)
+target_link_libraries(xfakeg fakeg_app xyz_parser)
+
+# 创建xtbfakeg可执行文件
+add_executable(xtbfakeg src/main/xtbfake_g.cpp)
+target_link_libraries(xtbfakeg fakeg_app xtb_parser)
 
 # 静态链接时的特殊处理（Linux）
 if((FULL_STATIC OR STATIC_LINKING) AND NOT WINDOWS_BUILD)
@@ -164,9 +172,13 @@ if(WINDOWS_BUILD)
         SUFFIX ".exe")
 endif()
 
-# 安装配置
-install(TARGETS afakeg bfakeg xfakeg DESTINATION bin)
-install(TARGETS fakeg_core amesp_parser bdf_parser xyz_parser DESTINATION lib)
+# 安装目标
+install(TARGETS afakeg bfakeg xfakeg xtbfakeg
+    RUNTIME DESTINATION bin
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+)
+install(TARGETS fakeg_core amesp_parser bdf_parser xyz_parser xtb_parser fakeg_app DESTINATION lib)
 install(DIRECTORY config/ DESTINATION share/fakeg/config)
 install(FILES README.md DESTINATION share/doc/fakeg)
 
