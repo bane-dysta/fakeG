@@ -24,13 +24,6 @@ private:
     bool parseStandardOrientation(std::ifstream& file, data::ParsedData& data);
     bool parseFrequencies(std::ifstream& file, data::ParsedData& data);
     
-    // 辅助方法
-    bool parseFrequencyBlock(std::ifstream& file, std::vector<data::FreqMode>& frequencies, 
-                           const std::vector<int>& freqIndices);
-    void parseAtomDisplacements(const std::string& line, int atomIndex, 
-                              std::vector<data::FreqMode>& frequencies, 
-                              const std::vector<int>& freqIndices);
-    
     // 检测标志
     bool xtbFormatDetected;
 };

@@ -188,7 +188,10 @@ bool XtbParser::parseFrequencies(std::ifstream& file, data::ParsedData& data) {
         }
     }
     
-    // 解析频率块
+    // 逐行解析所有内容
+    std::vector<int> currentFreqIndices;
+    bool inFreqBlock = false;
+    
     while (std::getline(file, line)) {
         line = string_utils::trim(line);
         
@@ -196,149 +199,109 @@ bool XtbParser::parseFrequencies(std::ifstream& file, data::ParsedData& data) {
             break;
         }
         
-        // 查找频率编号行
-        if (line.find_first_of("123456789") == 0) {
-            // 解析频率编号
-            std::istringstream iss(line);
-            std::vector<int> freqIndices;
-            int index;
-            while (iss >> index) {
-                freqIndices.push_back(index - 1); // 转为0基索引
+        // 检查是否是频率编号行
+        std::istringstream iss(line);
+        std::vector<int> numbers;
+        std::string word;
+        bool isFreqLine = true;
+        
+        while (iss >> word) {
+            try {
+                int num = std::stoi(word);
+                numbers.push_back(num);
+            } catch (...) {
+                isFreqLine = false;
+                break;
             }
+        }
+        
+        if (isFreqLine && numbers.size() >= 1 && numbers.size() <= 3) {
+            // 这是频率编号行
+            currentFreqIndices = numbers;
+            debugLog("Found frequencies: " + line);
+            inFreqBlock = true;
             
-            if (!freqIndices.empty()) {
-                debugLog("Found " + std::to_string(freqIndices.size()) + " frequency modes");
-                parseFrequencyBlock(file, data.frequencies, freqIndices);
+            // 确保频率向量足够大
+            for (int idx : currentFreqIndices) {
+                while (data.frequencies.size() <= static_cast<size_t>(idx - 1)) {
+                    data.frequencies.emplace_back();
+                }
+            }
+            continue;
+        }
+        
+        if (!inFreqBlock) continue;
+        
+        // 跳过对称性行
+        if (line.find_first_not_of("a ") == std::string::npos) {
+            continue;
+        }
+        
+        // 解析频率值
+        if (line.find("Frequencies") != std::string::npos) {
+            std::istringstream freqIss(line.substr(line.find("--") + 2));
+            for (size_t i = 0; i < currentFreqIndices.size(); i++) {
+                double freq;
+                if (freqIss >> freq) {
+                    int idx = currentFreqIndices[i] - 1;
+                    data.frequencies[idx].frequency = freq;
+                    debugLog("Frequency " + std::to_string(currentFreqIndices[i]) + ": " + std::to_string(freq));
+                }
+            }
+            continue;
+        }
+        
+        // 跳过其他属性行
+        if (line.find("Red. masses") != std::string::npos ||
+            line.find("Frc consts") != std::string::npos ||
+            line.find("Raman Activ") != std::string::npos ||
+            line.find("Depolar") != std::string::npos) {
+            continue;
+        }
+        
+        // 解析IR强度
+        if (line.find("IR Inten") != std::string::npos) {
+            std::istringstream irIss(line.substr(line.find("--") + 2));
+            for (size_t i = 0; i < currentFreqIndices.size(); i++) {
+                double intensity;
+                if (irIss >> intensity) {
+                    int idx = currentFreqIndices[i] - 1;
+                    data.frequencies[idx].irIntensity = intensity;
+                }
+            }
+            continue;
+        }
+        
+        // 跳过原子表头
+        if (line.find("Atom AN") != std::string::npos) {
+            continue;
+        }
+        
+        // 解析原子位移
+        std::istringstream atomIss(line);
+        int atomNum, atomicNum;
+        if (atomIss >> atomNum >> atomicNum) {
+            for (size_t i = 0; i < currentFreqIndices.size(); i++) {
+                double x, y, z;
+                if (atomIss >> x >> y >> z) {
+                    int freqIdx = currentFreqIndices[i] - 1;
+                    int atomIdx = atomNum - 1;
+                    
+                    // 确保位移向量足够大
+                    while (data.frequencies[freqIdx].displacements.size() <= static_cast<size_t>(atomIdx)) {
+                        data.frequencies[freqIdx].displacements.emplace_back(3, 0.0);
+                    }
+                    
+                    data.frequencies[freqIdx].displacements[atomIdx][0] = x;
+                    data.frequencies[freqIdx].displacements[atomIdx][1] = y;
+                    data.frequencies[freqIdx].displacements[atomIdx][2] = z;
+                }
             }
         }
     }
     
     infoLog("Found " + std::to_string(data.frequencies.size()) + " frequency modes");
     return !data.frequencies.empty();
-}
-
-bool XtbParser::parseFrequencyBlock(std::ifstream& file, std::vector<data::FreqMode>& frequencies, 
-                                  const std::vector<int>& freqIndices) {
-    std::string line;
-    
-    // 确保频率向量足够大
-    while (frequencies.size() <= static_cast<size_t>(*std::max_element(freqIndices.begin(), freqIndices.end()))) {
-        frequencies.emplace_back();
-    }
-    
-    // 跳过对称性行
-    if (!std::getline(file, line)) return false;
-    
-    // 读取频率值
-    if (std::getline(file, line) && line.find("Frequencies") != std::string::npos) {
-        std::istringstream iss(line.substr(line.find("--") + 2));
-        for (size_t i = 0; i < freqIndices.size(); i++) {
-            double freq;
-            if (iss >> freq) {
-                frequencies[freqIndices[i]].frequency = freq;
-                debugLog("Frequency " + std::to_string(freqIndices[i] + 1) + ": " + std::to_string(freq));
-            }
-        }
-    }
-    
-    // 读取约化质量（FreqMode结构体中没有此字段，跳过）
-    if (std::getline(file, line) && line.find("Red. masses") != std::string::npos) {
-        // 跳过约化质量数据，因为FreqMode结构体中没有此字段
-        debugLog("Skipping reduced masses (not stored in FreqMode)");
-    }
-    
-    // 跳过力常数行
-    if (!std::getline(file, line)) return false;
-    
-    // 读取IR强度
-    if (std::getline(file, line) && line.find("IR Inten") != std::string::npos) {
-        std::istringstream iss(line.substr(line.find("--") + 2));
-        for (size_t i = 0; i < freqIndices.size(); i++) {
-            double intensity;
-            if (iss >> intensity) {
-                frequencies[freqIndices[i]].irIntensity = intensity;
-            }
-        }
-    }
-    
-    // 跳过Raman和Depolar行
-    std::getline(file, line); // Raman Activ
-    std::getline(file, line); // Depolar
-    
-    // 读取原子位移
-    debugLog("Starting to read atom displacements");
-    while (std::getline(file, line)) {
-        line = string_utils::trim(line);
-        debugLog("Reading displacement line: '" + line + "'");
-        
-        if (line.empty()) {
-            // 遇到空行
-            debugLog("Found empty line, ending displacement block");
-            break;
-        }
-        
-        // 检查是否是下一个频率块的开始（纯数字行，如"4 5 6"）
-        std::istringstream testIss(line);
-        std::string firstWord;
-        testIss >> firstWord;
-        if (firstWord.find_first_not_of("0123456789") == std::string::npos && 
-            firstWord.length() < 3 && std::stoi(firstWord) > 3) {
-            // 如果是纯数字且可能是频率编号
-            debugLog("Found next frequency block, ending displacement block");
-            file.seekg(-static_cast<int>(line.length() + 1), std::ios::cur);
-            break;
-        }
-        
-        if (line.find("Atom") != std::string::npos) {
-            debugLog("Skipping atom header line");
-            continue; // 跳过表头
-        }
-        
-        // 解析原子位移
-        std::istringstream iss(line);
-        int atomNum, atomicNum;
-        if (iss >> atomNum >> atomicNum) {
-            debugLog("Parsing displacements for atom " + std::to_string(atomNum));
-            parseAtomDisplacements(line, atomNum - 1, frequencies, freqIndices);
-        } else {
-            debugLog("Could not parse atom line: " + line);
-        }
-    }
-    
-    return true;
-}
-
-void XtbParser::parseAtomDisplacements(const std::string& line, int atomIndex, 
-                                     std::vector<data::FreqMode>& frequencies, 
-                                     const std::vector<int>& freqIndices) {
-    std::istringstream iss(line);
-    int atomNum, atomicNum;
-    iss >> atomNum >> atomicNum; // 跳过原子编号和原子序数
-    
-    debugLog("Parsing displacements for atom " + std::to_string(atomIndex + 1) + ", line: " + line);
-    
-    // 为每个频率读取三个分量(x,y,z)
-    for (size_t i = 0; i < freqIndices.size(); i++) {
-        double x, y, z;
-        if (iss >> x >> y >> z) {
-            int freqIdx = freqIndices[i];
-            
-            // 确保位移向量足够大
-            while (frequencies[freqIdx].displacements.size() <= static_cast<size_t>(atomIndex)) {
-                frequencies[freqIdx].displacements.emplace_back(3, 0.0);
-            }
-            
-            frequencies[freqIdx].displacements[atomIndex][0] = x;
-            frequencies[freqIdx].displacements[atomIndex][1] = y;
-            frequencies[freqIdx].displacements[atomIndex][2] = z;
-            
-            debugLog("Atom " + std::to_string(atomIndex + 1) + " freq " + std::to_string(freqIdx + 1) + 
-                     " displacement: " + std::to_string(x) + " " + std::to_string(y) + " " + std::to_string(z));
-        } else {
-            debugLog("Failed to read displacement for freq " + std::to_string(freqIndices[i] + 1));
-            break;
-        }
-    }
 }
 
 } // namespace parsers

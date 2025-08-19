@@ -1,5 +1,7 @@
 # FakeG - 模块化量子化学输出转换工具
 
+> 内容大多由Claude生成，彩红屁勿信，技术方面相对可信。
+
 ## 项目概述
 
 FakeG是一个模块化的C++项目，用于将各种量子化学软件的结构优化输出文件转换为伪Gaussian格式文件，从而可以使用gview可视化结构优化过程。
@@ -8,6 +10,7 @@ FakeG是一个模块化的C++项目，用于将各种量子化学软件的结构
 - **AMESP** → AfakeG可执行文件
 - **BDF** → BfakeG可执行文件
 - **XYZ/TRJ轨迹** → XfakeG可执行文件
+- **XTB Gaussian格式** → XtbfakeG可执行文件
 
 > 关于orca，可移步sobereva老师开发的[OfakeG](http://sobereva.com/498)。
 
@@ -40,11 +43,15 @@ FakeG/
 │   ├── parsers/           # 解析器模块
 │   │   ├── parser_interface.h/cpp  # 解析器基础接口
 │   │   ├── amesp_parser.h/cpp      # AMESP格式解析器
-│   │   └── bdf_parser.h/cpp        # BDF格式解析器
+│   │   ├── bdf_parser.h/cpp        # BDF格式解析器
+│   │   ├── xyz_parser.h/cpp        # XYZ/TRJ轨迹解析器
+│   │   └── xtb_parser.h/cpp        # XTB Gaussian格式解析器
 │   └── main/              # 主程序模块
 │       ├── fake_g_app.h/cpp        # 应用程序框架
 │       ├── afake_g.cpp             # AfakeG主程序
-│       └── bfake_g.cpp             # BfakeG主程序
+│       ├── bfake_g.cpp             # BfakeG主程序
+│       ├── xfake_g.cpp             # XfakeG主程序
+│       └── xtbfake_g.cpp           # XtbfakeG主程序
 ├── config/                # 配置文件
 ├── build.sh              # 通用构建脚本
 ├── build_windows.sh      # Windows交叉编译脚本
@@ -137,6 +144,22 @@ make -j$(nproc)
 # 支持能量提取的格式：
 # molclus: Energy =   -147.48410656 a.u.  #Cluster:    1
 # xtb:     energy: -149.706157544781 gnorm: 0.499531841458 xtb: 6.7.0 (75e6a61)
+```
+
+### XtbfakeG (XTB Gaussian格式转换)
+
+```bash
+# 交互模式
+./xtbfakeg
+
+# 命令行模式
+./xtbfakeg g98.out
+./xtbfakeg g98.out --debug
+
+# 支持的输入格式：
+# - XTB生成的Gaussian 98格式频率输出
+# - 包含标准定向坐标、频率信息和正则坐标
+# - 自动设置标准温度(298.15K)和压力(1.0atm)以确保gview兼容性
 ```
 
 ## 编写新解析器
@@ -297,26 +320,58 @@ bool YourParser::parseOptimizationSteps(std::ifstream& file, data::ParsedData& d
 
 ```cpp
 #include <iostream>
+#include <string>
 #include "fake_g_app.h"
 #include "../parsers/your_parser.h"
+#include "../string/string_utils.h"
 
 using namespace fakeg;
 
 int main(int argc, char* argv[]) {
-    // 创建你的解析器实例
+    // 创建 YOUR 解析器
     auto parser = std::make_unique<parsers::YourParser>();
     
-    // 创建注入解析器的应用程序
+    // 创建应用程序实例
     app::FakeGApp app(std::move(parser));
     
     // 设置程序信息
-    app.setProgramInfo("YourFakeG", "1.0.0", "你的名字");
+    app.setProgramInfo("YourfakeG", "1.0.0", "你的名字");
     
-    // 运行应用程序
-    if (app.run(argc, argv)) {
-        return 0;
+    // 如果没有提供命令行参数，则交互式获取输入文件
+    if (argc == 1) {
+        std::cout << "YourfakeG: Convert YOUR format output to fake Gaussian format" << std::endl;
+        std::cout << "Author: 你的名字" << std::endl;
+        std::cout << std::endl;
+        
+        std::string inputFile;
+        std::cout << "Please enter YOUR format output file path: ";
+        std::getline(std::cin, inputFile);
+        
+        // 处理引号
+        inputFile = string_utils::removeQuotes(inputFile);
+        
+        if (inputFile.empty()) {
+            std::cerr << "Error: No input file provided" << std::endl;
+            return 1;
+        }
+        
+        // 构造新的argv数组
+        char* newArgv[] = {argv[0], const_cast<char*>(inputFile.c_str())};
+        int newArgc = 2;
+        
+        // 运行程序
+        if (app.run(newArgc, newArgv)) {
+            return 0;
+        } else {
+            return 1;
+        }
     } else {
-        return 1;
+        // 有命令行参数，正常运行
+        if (app.run(argc, argv)) {
+            return 0;
+        } else {
+            return 1;
+        }
     }
 }
 ```
@@ -327,20 +382,22 @@ int main(int argc, char* argv[]) {
 
 ```cmake
 # 添加你的解析器库
-set(YOUR_PARSER_SOURCES
+add_library(your_parser STATIC
     src/parsers/your_parser.cpp
 )
-
-add_library(your_parser ${YOUR_PARSER_SOURCES})
 target_link_libraries(your_parser fakeg_core)
 
 # 添加你的可执行文件
 add_executable(yourfakeg src/main/yourfake_g.cpp)
-target_link_libraries(yourfakeg fakeg_core your_parser)
+target_link_libraries(yourfakeg fakeg_app your_parser)
 
 # 添加到安装目标
-install(TARGETS yourfakeg DESTINATION bin)
-install(TARGETS your_parser DESTINATION lib)
+install(TARGETS yourfakeg
+    RUNTIME DESTINATION bin
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+)
+install(TARGETS your_parser fakeg_app DESTINATION lib)
 ```
 
 ### 关键解析概念
