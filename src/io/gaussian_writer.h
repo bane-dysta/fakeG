@@ -16,7 +16,7 @@ private:
     std::string versionInfo;
     
     // 内部写入方法
-    void writeHeader(std::ofstream& out);
+    void writeHeader(std::ofstream& out, const data::ParsedData& data);
     void writeOptimizationStep(std::ofstream& out, const data::OptStep& step);
     void writeFrequencies(std::ofstream& out, const data::ParsedData& data);
     void writeFrequencyBlock(std::ofstream& out, const data::ParsedData& data, int startIdx, int endIdx);

@@ -72,7 +72,12 @@ struct ParsedData {
     bool hasOpt;
     bool hasFreq;
     
-    ParsedData() : hasOpt(false), hasFreq(false) {}
+    // Charge and spin information
+    int charge;
+    int spin;
+    bool hasChargeSpinInfo;
+    
+    ParsedData() : hasOpt(false), hasFreq(false), charge(0), spin(1), hasChargeSpinInfo(false) {}
 };
 
 // 元素映射管理类

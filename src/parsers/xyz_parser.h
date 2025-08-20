@@ -22,10 +22,10 @@ public:
 private:
     // XYZ解析方法
     bool parseXyzTrajectory(std::ifstream& file, data::ParsedData& data);
-    bool parseXyzFrame(std::ifstream& file, data::OptStep& step, int frameNumber);
+    bool parseXyzFrame(std::ifstream& file, data::OptStep& step, int frameNumber, data::ParsedData& data);
     
     // 能量提取方法
-    double extractEnergyFromComment(const std::string& comment, bool& energyFound);
+    double extractEnergyFromComment(const std::string& comment, bool& energyFound, data::ParsedData& data, int frameNumber);
     double extractMolclusEnergy(const std::string& comment);
     double extractXtbEnergy(const std::string& comment);
     

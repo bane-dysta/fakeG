@@ -84,7 +84,7 @@ bool XyzParser::parseXyzTrajectory(std::ifstream& file, data::ParsedData& data) 
                 data::OptStep step;
                 step.stepNumber = totalFrames + 1;
                 
-                if (parseXyzFrame(file, step, totalFrames + 1)) {
+                if (parseXyzFrame(file, step, totalFrames + 1, data)) {
                     if (!step.atoms.empty()) {
                         data.optSteps.push_back(step);
                         totalFrames++;
@@ -102,7 +102,7 @@ bool XyzParser::parseXyzTrajectory(std::ifstream& file, data::ParsedData& data) 
     return totalFrames > 0;
 }
 
-bool XyzParser::parseXyzFrame(std::ifstream& file, data::OptStep& step, int frameNumber) {
+bool XyzParser::parseXyzFrame(std::ifstream& file, data::OptStep& step, int frameNumber, data::ParsedData& data) {
     std::string commentLine;
     
     // 读取注释行
@@ -115,7 +115,7 @@ bool XyzParser::parseXyzFrame(std::ifstream& file, data::OptStep& step, int fram
     
     // 尝试从注释行提取能量
     bool energyFound = false;
-    double energy = extractEnergyFromComment(commentLine, energyFound);
+    double energy = extractEnergyFromComment(commentLine, energyFound, data, frameNumber);
     
     if (energyFound) {
         step.energy = energy;
@@ -156,8 +156,49 @@ bool XyzParser::parseXyzFrame(std::ifstream& file, data::OptStep& step, int fram
     return !step.atoms.empty();
 }
 
-double XyzParser::extractEnergyFromComment(const std::string& comment, bool& energyFound) {
+double XyzParser::extractEnergyFromComment(const std::string& comment, bool& energyFound, data::ParsedData& data, int frameNumber) {
     energyFound = false;
+    
+    // 在第一帧时尝试提取charge和spin信息
+    if (frameNumber == 1 && !data.hasChargeSpinInfo) {
+        std::string trimmed = string_utils::trim(comment);
+        
+        // 将字符串按空格分割
+        std::istringstream iss(trimmed);
+        std::vector<std::string> tokens;
+        std::string token;
+        
+        while (iss >> token) {
+            tokens.push_back(token);
+        }
+        
+        // 检查是否有且仅有两个token，并且都是整数
+        if (tokens.size() == 2) {
+            try {
+                bool isFirstInt = string_utils::isValidNumber(tokens[0]);
+                bool isSecondInt = string_utils::isValidNumber(tokens[1]);
+                
+                if (isFirstInt && isSecondInt) {
+                    // 检查是否为整数（不包含小数点）
+                    if (tokens[0].find('.') == std::string::npos && 
+                        tokens[1].find('.') == std::string::npos) {
+                        
+                        data.charge = string_utils::toInt(tokens[0], 0);
+                        data.spin = string_utils::toInt(tokens[1], 1);
+                        data.hasChargeSpinInfo = true;
+                        
+                        infoLog("Extracted charge: " + std::to_string(data.charge) + 
+                               ", spin: " + std::to_string(data.spin) + " from first frame");
+                        
+                        // 如果第二行只有charge和spin信息，直接返回
+                        return 0.0;
+                    }
+                }
+            } catch (const std::exception& e) {
+                debugLog("Failed to parse charge/spin: " + std::string(e.what()));
+            }
+        }
+    }
     
     // 尝试molclus格式：Energy =   -147.48410656 a.u.  #Cluster:    1
     double energy = extractMolclusEnergy(comment);
