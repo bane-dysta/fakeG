@@ -64,6 +64,46 @@ struct ThermoData {
                    expectedDeltaE(0.0), hasConvergenceData(false) {}
 };
 
+// 轨道跃迁结构
+struct OrbitalTransition {
+    int fromOrb;
+    int toOrb;
+    double coefficient;
+    bool isAlpha; // true for alpha, false for beta (for unrestricted calculations)
+    bool isForward; // true for ->, false for <-
+    
+    OrbitalTransition() : fromOrb(0), toOrb(0), coefficient(0.0), isAlpha(true), isForward(true) {}
+};
+
+// 激发态结构
+struct ExcitedState {
+    int stateNumber;
+    std::string symmetry;        // e.g., "Singlet-A'", "Triplet-A""
+    double excitationEnergy_eV;  // 激发能量 (eV)
+    double wavelength_nm;        // 波长 (nm)
+    double oscillatorStrength;   // 振荡强度 f
+    double s2Value;             // <S**2> 值
+    std::vector<OrbitalTransition> transitions; // 轨道跃迁列表
+    
+    // 可选信息
+    bool hasOptimizationInfo;    // 是否有优化相关信息
+    bool hasTotalEnergy;         // 是否有总能量
+    double totalEnergy;          // Total Energy, E(TD-HF/TD-DFT)
+    std::string additionalInfo;  // 额外信息，如"This state for optimization..."
+    
+    ExcitedState() : stateNumber(1), symmetry("Singlet-A"), excitationEnergy_eV(0.0),
+                     wavelength_nm(0.0), oscillatorStrength(0.0), s2Value(0.0),
+                     hasOptimizationInfo(false), hasTotalEnergy(false), totalEnergy(0.0) {}
+};
+
+// TDDFT数据结构
+struct TDDFTData {
+    std::vector<ExcitedState> excitedStates;
+    bool hasData;
+    
+    TDDFTData() : hasData(false) {}
+};
+
 // 解析结果数据结构
 struct ParsedData {
     std::vector<OptStep> optSteps;
@@ -77,7 +117,11 @@ struct ParsedData {
     int spin;
     bool hasChargeSpinInfo;
     
-    ParsedData() : hasOpt(false), hasFreq(false), charge(0), spin(1), hasChargeSpinInfo(false) {}
+    // TDDFT information
+    std::vector<TDDFTData> tddftData; // 每个优化步骤对应一个TDDFT数据
+    bool hasTDDFT;
+    
+    ParsedData() : hasOpt(false), hasFreq(false), charge(0), spin(1), hasChargeSpinInfo(false), hasTDDFT(false) {}
 };
 
 // 元素映射管理类

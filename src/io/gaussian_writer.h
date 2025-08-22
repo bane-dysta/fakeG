@@ -17,12 +17,17 @@ private:
     
     // 内部写入方法
     void writeHeader(std::ofstream& out, const data::ParsedData& data);
-    void writeOptimizationStep(std::ofstream& out, const data::OptStep& step);
+    void writeOptimizationStep(std::ofstream& out, const data::OptStep& step, const data::TDDFTData* tddftData = nullptr);
     void writeFrequencies(std::ofstream& out, const data::ParsedData& data);
     void writeFrequencyBlock(std::ofstream& out, const data::ParsedData& data, int startIdx, int endIdx);
     void writeThermoData(std::ofstream& out, const data::ThermoData& thermoData);
     void writeConvergenceData(std::ofstream& out, const data::ThermoData& thermoData);
     void writeFooter(std::ofstream& out);
+    
+    // TDDFT写入方法
+    void writeTDDFTData(std::ofstream& out, const data::TDDFTData& tddftData);
+    void writeExcitedState(std::ofstream& out, const data::ExcitedState& excitedState);
+    void writeOrbitalTransitions(std::ofstream& out, const std::vector<data::OrbitalTransition>& transitions);
     
     // 格式化辅助方法
     std::string formatEnergy(double energy, int precision = 9);

@@ -72,8 +72,12 @@ bool GaussianWriter::writeGaussianOutput(const data::ParsedData& data, const std
     
     writeHeader(out, data);
     
-    for (const auto& step : data.optSteps) {
-        writeOptimizationStep(out, step);
+    for (size_t i = 0; i < data.optSteps.size(); i++) {
+        const data::TDDFTData* tddftData = nullptr;
+        if (data.hasTDDFT && i < data.tddftData.size() && data.tddftData[i].hasData) {
+            tddftData = &data.tddftData[i];
+        }
+        writeOptimizationStep(out, data.optSteps[i], tddftData);
     }
     
     if (data.hasOpt) {
@@ -109,7 +113,7 @@ void GaussianWriter::writeHeader(std::ofstream& out, const data::ParsedData& dat
     out << "GradGradGradGradGradGradGradGradGradGradGradGradGradGradGradGradGradGrad" << std::endl;
 }
 
-void GaussianWriter::writeOptimizationStep(std::ofstream& out, const data::OptStep& step) {
+void GaussianWriter::writeOptimizationStep(std::ofstream& out, const data::OptStep& step, const data::TDDFTData* tddftData) {
     out << std::endl;
     out << "                        Standard orientation:" << std::endl;
     out << "---------------------------------------------------------------------" << std::endl;
@@ -132,6 +136,11 @@ void GaussianWriter::writeOptimizationStep(std::ofstream& out, const data::OptSt
     
     out << std::endl;
     out << " SCF Done:  E(theory) = " << formatEnergy(step.energy) << std::endl;
+    
+    // TDDFT数据紧跟在SCF Done后面
+    if (tddftData && tddftData->hasData) {
+        writeTDDFTData(out, *tddftData);
+    }
     
     if (step.stepNumber > 0) {
         out << std::endl;
@@ -327,6 +336,70 @@ bool GaussianWriter::validateOutput(const std::string& filename) {
     }
     
     return hasHeader && hasGeometry;
+}
+
+void GaussianWriter::writeTDDFTData(std::ofstream& out, const data::TDDFTData& tddftData) {
+    if (!tddftData.hasData || tddftData.excitedStates.empty()) {
+        return;
+    }
+    
+    out << std::endl;
+    out << " Excitation energies and oscillator strengths:" << std::endl;
+    out << std::endl;
+    
+    for (const auto& excitedState : tddftData.excitedStates) {
+        writeExcitedState(out, excitedState);
+    }
+    
+    // 添加激发态块结束语句
+    out << " SavETr:  write IOETrn=     0 NScale=  0 NData=   0 NLR=  NState=    0 LETran=       0." << std::endl;
+}
+
+void GaussianWriter::writeExcitedState(std::ofstream& out, const data::ExcitedState& excitedState) {
+    // 输出激发态标题行
+    out << " Excited State" << std::setw(4) << excitedState.stateNumber << ":      "
+        << std::setw(10) << std::left << excitedState.symmetry << std::right
+        << std::fixed << std::setprecision(4) << std::setw(8) << excitedState.excitationEnergy_eV
+        << " eV" << std::setw(8) << std::setprecision(2) << excitedState.wavelength_nm
+        << " nm  f=" << std::setprecision(4) << std::setw(6) << excitedState.oscillatorStrength
+        << "  <S**2>=" << std::setprecision(3) << excitedState.s2Value << std::endl;
+    
+    // 输出轨道跃迁信息
+    writeOrbitalTransitions(out, excitedState.transitions);
+    
+    // 如果有优化相关信息
+    if (excitedState.hasOptimizationInfo) {
+        out << " This state for optimization and/or second-order correction." << std::endl;
+    }
+    
+    // 如果有总能量信息
+    if (excitedState.hasTotalEnergy) {
+        out << " Total Energy, E(TD-HF/TD-DFT) = " << std::fixed << std::setprecision(10)
+            << std::setw(15) << excitedState.totalEnergy << "    " << std::endl;
+    }
+    
+    // 输出额外信息
+    if (!excitedState.additionalInfo.empty()) {
+        out << " " << excitedState.additionalInfo << std::endl;
+    }
+    
+    out << std::endl;
+}
+
+void GaussianWriter::writeOrbitalTransitions(std::ofstream& out, const std::vector<data::OrbitalTransition>& transitions) {
+    for (const auto& transition : transitions) {
+        out << "      " << std::setw(2) << transition.fromOrb;
+        
+        // 根据原始箭头方向输出：--> 转为 ->，<-- 转为 <-
+        if (transition.isForward) {
+            out << " -> " << std::setw(2) << transition.toOrb;
+        } else {
+            out << " <- " << std::setw(2) << transition.toOrb;
+        }
+        
+        out << "         " << std::fixed << std::setprecision(5) 
+            << transition.coefficient << std::endl;
+    }
 }
 
 
