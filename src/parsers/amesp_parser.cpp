@@ -384,23 +384,32 @@ double AmespParser::parseEnergyFromCurrentPosition(std::ifstream& file) {
     std::string line;
     double energy = 0.0;
     
-    // 直接查找E[DFT]，不再根据E[Eexc]的存在与否来选择
-    std::string targetPattern = "E[DFT]";
+    // 首先尝试查找E[DFT]，如果找不到则查找E[aTB]
+    std::vector<std::string> energyPatterns = {"E[DFT]", "E[aTB]"};
     
-    while (std::getline(file, line)) {
-        if (line.find(targetPattern) != std::string::npos) {
-            size_t pos = line.find("=");
-            if (pos != std::string::npos) {
-                std::string energyStr = string_utils::trim(line.substr(pos + 1));
-                energy = string_utils::toDouble(energyStr);
-                debugLog("Found energy " + targetPattern + ": " + std::to_string(energy));
-                return energy;
+    for (const auto& targetPattern : energyPatterns) {
+        // 重置文件位置到当前位置开始
+        std::streampos startPos = file.tellg();
+        
+        while (std::getline(file, line)) {
+            if (line.find(targetPattern) != std::string::npos) {
+                size_t pos = line.find("=");
+                if (pos != std::string::npos) {
+                    std::string energyStr = string_utils::trim(line.substr(pos + 1));
+                    energy = string_utils::toDouble(energyStr);
+                    debugLog("Found energy " + targetPattern + ": " + std::to_string(energy));
+                    return energy;
+                }
+            }
+            
+            if (line.find("Geom Opt Step:") != std::string::npos) {
+                break;
             }
         }
         
-        if (line.find("Geom Opt Step:") != std::string::npos) {
-            break;
-        }
+        // 重置到开始位置，尝试下一个模式
+        file.clear();
+        file.seekg(startPos);
     }
     
     return energy;
@@ -691,7 +700,8 @@ data::ExcitedState AmespParser::parseExcitedState(std::ifstream& file, const std
             }
             
             // 解析E(TD)行：E(TD) =   -188.290813700      <S**2>= 0.000     f=  0.0000
-            else if (line.find("E(TD)") != std::string::npos) {
+            // 或者：E(TDA-aTB) =   -188.290813700      <S**2>= 0.000     f=  0.0000
+            else if (line.find("E(TD)") != std::string::npos || line.find("E(TDA-aTB)") != std::string::npos) {
                 std::istringstream etdIss(line);
                 std::string etd, eq;
                 double totalEnergy;
@@ -707,7 +717,7 @@ data::ExcitedState AmespParser::parseExcitedState(std::ifstream& file, const std
                         excitedState.totalEnergy = totalEnergy;
                         excitedState.additionalInfo = "Copying the excited state density for this state as the 1-particle RhoCI density.";
                         
-                        debugLog("  This is the tracked state (E(TD) = E[Eexc])");
+                        debugLog("  This is the tracked state (E(TD)/E(TDA-aTB) = E[Eexc])");
                     }
                     
                     // 查找<S**2>值
@@ -732,7 +742,7 @@ data::ExcitedState AmespParser::parseExcitedState(std::ifstream& file, const std
                             ", f: " + std::to_string(excitedState.oscillatorStrength) +
                             ", tracked: " + (isTrackedState ? "Yes" : "No"));
                 }
-                break; // E(TD)行通常是激发态的最后一行
+                break; // E(TD)或E(TDA-aTB)行通常是激发态的最后一行
             }
             
             // 如果遇到下一个State行，停止解析当前激发态
