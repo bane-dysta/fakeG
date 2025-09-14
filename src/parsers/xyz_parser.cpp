@@ -8,7 +8,7 @@
 namespace fakeg {
 namespace parsers {
 
-XyzParser::XyzParser() : totalFrames(0), framesWithEnergy(0), molclusDetected(false), xtbDetected(false) {}
+XyzParser::XyzParser() : totalFrames(0), framesWithEnergy(0), molclusDetected(false), xtbDetected(false), orcaDetected(false) {}
 
 bool XyzParser::parse(io::FileReader& reader, data::ParsedData& data) {
     std::ifstream& file = reader.getStream();
@@ -44,8 +44,16 @@ bool XyzParser::validateInput(const std::string& filename) {
         return false;
     }
     
-    // 用户指定的文件就是想要转换的文件，不需要额外验证
-    (void)filename; // 抑制未使用参数警告
+    // Basic XYZ format validation - check first few lines
+    std::string line;
+    if (std::getline(file, line)) {
+        line = string_utils::trim(line);
+        if (!string_utils::isValidNumber(line) || string_utils::toInt(line, 0) <= 0) {
+            errorLog("Invalid XYZ format: first line should contain positive atom count");
+            return false;
+        }
+    }
+    
     return true;
 }
 
@@ -54,7 +62,7 @@ std::string XyzParser::getParserName() const {
 }
 
 std::string XyzParser::getParserVersion() const {
-    return "1.0.0";
+    return "1.1.0"; // Updated version for ORCA support
 }
 
 std::vector<std::string> XyzParser::getSupportedKeywords() const {
@@ -68,6 +76,7 @@ bool XyzParser::parseXyzTrajectory(std::ifstream& file, data::ParsedData& data) 
     framesWithEnergy = 0;
     molclusDetected = false;
     xtbDetected = false;
+    orcaDetected = false;
     
     std::string line;
     
@@ -146,9 +155,7 @@ bool XyzParser::parseXyzFrame(std::ifstream& file, data::OptStep& step, int fram
         
         // 解析原子行
         data::Atom atom;
-        parseAtomLine(atomLine, atom);
-        
-        if (!atom.symbol.empty()) {
+        if (parseAtomLine(atomLine, atom)) {
             step.atoms.push_back(atom);
         }
     }
@@ -200,8 +207,15 @@ double XyzParser::extractEnergyFromComment(const std::string& comment, bool& ene
         }
     }
     
+    // 尝试ORCA格式：Coordinates from ORCA-job IRC-TS1-2-IM1-1 E -687.545427056709
+    double energy = extractOrcaEnergy(comment);
+    if (energy != 0.0) {
+        energyFound = true;
+        return energy;
+    }
+    
     // 尝试molclus格式：Energy =   -147.48410656 a.u.  #Cluster:    1
-    double energy = extractMolclusEnergy(comment);
+    energy = extractMolclusEnergy(comment);
     if (energy != 0.0) {
         energyFound = true;
         return energy;
@@ -212,6 +226,31 @@ double XyzParser::extractEnergyFromComment(const std::string& comment, bool& ene
     if (energy != 0.0) {
         energyFound = true;
         return energy;
+    }
+    
+    return 0.0;
+}
+
+double XyzParser::extractOrcaEnergy(const std::string& comment) {
+    // 使用正则表达式匹配ORCA格式：Coordinates from ORCA-job ... E 数字
+    std::regex orcaPattern(R"(Coordinates\s+from\s+ORCA-job\s+.+\s+E\s+([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?))");
+    std::smatch match;
+    
+    if (std::regex_search(comment, match, orcaPattern)) {
+        try {
+            double energy = std::stod(match[1].str());
+            debugLog("Extracted ORCA energy: " + std::to_string(energy));
+            
+            // 只在第一次检测时输出提示
+            if (!orcaDetected) {
+                infoLog(">> Detected ORCA output format - energy information available");
+                orcaDetected = true;
+            }
+            
+            return energy;
+        } catch (const std::exception& e) {
+            debugLog("Failed to convert ORCA energy: " + std::string(e.what()));
+        }
     }
     
     return 0.0;
@@ -267,7 +306,7 @@ double XyzParser::extractXtbEnergy(const std::string& comment) {
     return 0.0;
 }
 
-void XyzParser::parseAtomLine(const std::string& line, data::Atom& atom) {
+bool XyzParser::parseAtomLine(const std::string& line, data::Atom& atom) {
     std::istringstream iss(line);
     std::string symbol;
     double x, y, z;
@@ -287,11 +326,13 @@ void XyzParser::parseAtomLine(const std::string& line, data::Atom& atom) {
         
         debugLog("Parsed atom: " + symbol + " (" + std::to_string(atom.atomicNumber) + ") " +
                  std::to_string(x) + " " + std::to_string(y) + " " + std::to_string(z));
+        return true;
     } else {
         errorLog("Failed to parse atom line: " + line);
         atom.symbol = "";
+        return false;
     }
 }
 
 } // namespace parsers
-} // namespace fakeg 
+} // namespace fakeg

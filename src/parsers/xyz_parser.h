@@ -1,5 +1,4 @@
 #pragma once
-
 #include "parser_interface.h"
 #include "../string/string_utils.h"
 #include <regex>
@@ -28,9 +27,10 @@ private:
     double extractEnergyFromComment(const std::string& comment, bool& energyFound, data::ParsedData& data, int frameNumber);
     double extractMolclusEnergy(const std::string& comment);
     double extractXtbEnergy(const std::string& comment);
+    double extractOrcaEnergy(const std::string& comment);  // 新增ORCA能量提取
     
     // 辅助方法
-    void parseAtomLine(const std::string& line, data::Atom& atom);
+    bool parseAtomLine(const std::string& line, data::Atom& atom);  // 改为返回bool
     
     // 统计信息
     int totalFrames;
@@ -39,7 +39,8 @@ private:
     // 格式提示标志
     bool molclusDetected;
     bool xtbDetected;
+    bool orcaDetected;  // 新增ORCA检测标志
 };
 
 } // namespace parsers
-} // namespace fakeg 
+} // namespace fakeg
