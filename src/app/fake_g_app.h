@@ -1,12 +1,13 @@
 #pragma once
 
-#include <string>
 #include <memory>
-#include "../data/structures.h"
-#include "../io/file_reader.h"
-#include "../io/gaussian_writer.h"
-#include "../parsers/parser_interface.h"
-#include "../logger/logger.h"
+#include <string>
+
+#include "data/structures.h"
+#include "io/file_reader.h"
+#include "io/gaussian_writer.h"
+#include "logger/logger.h"
+#include "parsers/parser_interface.h"
 
 namespace fakeg {
 namespace app {
@@ -48,7 +49,6 @@ public:
     bool validateOutput();
     
     // 主运行方法
-    bool run(int argc, char* argv[]);
     bool run(const std::string& inputFilename, bool debugMode = false);
     
     // 状态查询
@@ -56,13 +56,8 @@ public:
     std::string getOutputFile() const;
     bool isDebugMode() const;
     
-    // 帮助和版本信息
-    void printHelp() const;
-    void printVersion() const;
-    
 private:
     // 内部方法
-    bool parseCommandLineArgs(int argc, char* argv[]);
     bool setupOutput();
     void showProgressInfo(const data::ParsedData& data);  // 去掉 const
     void showErrorInfo(const std::string& error);         // 去掉 const

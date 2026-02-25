@@ -2,9 +2,10 @@
 
 #include <string>
 #include <memory>
-#include "../data/structures.h"
-#include "../io/file_reader.h"
-#include "../logger/logger.h"
+
+#include "data/structures.h"
+#include "io/file_reader.h"
+#include "logger/logger.h"
 
 namespace fakeg {
 namespace parsers {

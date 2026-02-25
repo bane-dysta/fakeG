@@ -60,21 +60,34 @@ if(NOT WINDOWS_BUILD)
     endif()
 endif()
 
-# 包含目录
-include_directories(src)
+# -----------------------------
+# Core / App / CLI libraries
+# -----------------------------
 
-# 创建通用库
-set(FAKEG_CORE_SOURCES
+add_library(fakeg_core STATIC
     src/data/structures.cpp
     src/logger/logger.cpp
     src/string/string_utils.cpp
     src/io/file_reader.cpp
     src/io/gaussian_writer.cpp
     src/parsers/parser_interface.cpp
-    src/main/fake_g_app.cpp
 )
 
-add_library(fakeg_core ${FAKEG_CORE_SOURCES})
+target_include_directories(fakeg_core
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_library(fakeg_app STATIC
+    src/app/fake_g_app.cpp
+)
+target_link_libraries(fakeg_app PUBLIC fakeg_core)
+
+add_library(fakeg_cli STATIC
+    src/cli/argument_parser.cpp
+    src/cli/app_runner.cpp
+)
+target_link_libraries(fakeg_cli PUBLIC fakeg_app)
 
 # 解析器库
 set(AMESP_PARSER_SOURCES
@@ -82,50 +95,46 @@ set(AMESP_PARSER_SOURCES
 )
 
 add_library(amesp_parser ${AMESP_PARSER_SOURCES})
-target_link_libraries(amesp_parser fakeg_core)
+target_link_libraries(amesp_parser PUBLIC fakeg_core)
 
 set(BDF_PARSER_SOURCES
     src/parsers/bdf_parser.cpp
 )
 
 add_library(bdf_parser ${BDF_PARSER_SOURCES})
-target_link_libraries(bdf_parser fakeg_core)
+target_link_libraries(bdf_parser PUBLIC fakeg_core)
 
 # XYZ Parser library
 set(XYZ_PARSER_SOURCES
     src/parsers/xyz_parser.cpp
+    src/parsers/xyz/energy_extractors.cpp
+    src/parsers/xyz/xyz_comment_parser.cpp
 )
 
 add_library(xyz_parser ${XYZ_PARSER_SOURCES})
-target_link_libraries(xyz_parser fakeg_core)
+target_link_libraries(xyz_parser PUBLIC fakeg_core)
 
 # 创建xtb_parser库
 add_library(xtb_parser STATIC
     src/parsers/xtb_parser.cpp
 )
-target_link_libraries(xtb_parser fakeg_core)
-
-# 创建应用程序框架库
-add_library(fakeg_app STATIC
-    src/main/fake_g_app.cpp
-)
-target_link_libraries(fakeg_app fakeg_core)
+target_link_libraries(xtb_parser PUBLIC fakeg_core)
 
 # AfakeG可执行文件
 add_executable(afakeg src/main/afake_g.cpp)
-target_link_libraries(afakeg fakeg_app amesp_parser)
+target_link_libraries(afakeg PRIVATE fakeg_cli amesp_parser)
 
 # BfakeG可执行文件
 add_executable(bfakeg src/main/bfake_g.cpp)
-target_link_libraries(bfakeg fakeg_core bdf_parser)
+target_link_libraries(bfakeg PRIVATE fakeg_cli bdf_parser)
 
 # XfakeG executable
 add_executable(xfakeg src/main/xfake_g.cpp)
-target_link_libraries(xfakeg fakeg_app xyz_parser)
+target_link_libraries(xfakeg PRIVATE fakeg_cli xyz_parser)
 
 # 创建xtbfakeg可执行文件
 add_executable(xtbfakeg src/main/xtbfake_g.cpp)
-target_link_libraries(xtbfakeg fakeg_app xtb_parser)
+target_link_libraries(xtbfakeg PRIVATE fakeg_cli xtb_parser)
 
 # 静态链接时的特殊处理（Linux）
 if((FULL_STATIC OR STATIC_LINKING) AND NOT WINDOWS_BUILD)
@@ -178,7 +187,7 @@ install(TARGETS afakeg bfakeg xfakeg xtbfakeg
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
 )
-install(TARGETS fakeg_core amesp_parser bdf_parser xyz_parser xtb_parser fakeg_app DESTINATION lib)
+install(TARGETS fakeg_core fakeg_app fakeg_cli amesp_parser bdf_parser xyz_parser xtb_parser DESTINATION lib)
 install(DIRECTORY config/ DESTINATION share/fakeg/config)
 install(FILES README.md DESTINATION share/doc/fakeg)
 

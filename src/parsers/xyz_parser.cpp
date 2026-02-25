@@ -1,14 +1,18 @@
 #include "xyz_parser.h"
-#include "../string/string_utils.h"
-#include <sstream>
-#include <regex>
+
 #include <algorithm>
 #include <cctype>
+#include <sstream>
 
 namespace fakeg {
 namespace parsers {
 
-XyzParser::XyzParser() : totalFrames(0), framesWithEnergy(0), molclusDetected(false), xtbDetected(false), orcaDetected(false) {}
+XyzParser::XyzParser()
+    : totalFrames(0),
+      framesWithEnergy(0),
+      commentParser(
+          [this](const std::string& msg) { this->infoLog(msg); },
+          [this](const std::string& msg) { this->debugLog(msg); }) {}
 
 bool XyzParser::parse(io::FileReader& reader, data::ParsedData& data) {
     std::ifstream& file = reader.getStream();
@@ -74,9 +78,9 @@ bool XyzParser::parseXyzTrajectory(std::ifstream& file, data::ParsedData& data) 
     
     totalFrames = 0;
     framesWithEnergy = 0;
-    molclusDetected = false;
-    xtbDetected = false;
-    orcaDetected = false;
+
+    // Reset per-run comment parsing state (one-time format detection logging).
+    commentParser.reset();
     
     std::string line;
     
@@ -121,15 +125,13 @@ bool XyzParser::parseXyzFrame(std::ifstream& file, data::OptStep& step, int fram
     }
     
     commentLine = string_utils::trim(commentLine);
-    
-    // 尝试从注释行提取能量
-    bool energyFound = false;
-    double energy = extractEnergyFromComment(commentLine, energyFound, data, frameNumber);
-    
-    if (energyFound) {
-        step.energy = energy;
+
+    // Parse comment (charge/spin + energy)
+    auto energy = commentParser.parse(commentLine, data, frameNumber);
+    if (energy.has_value()) {
+        step.energy = *energy;
         framesWithEnergy++;
-        debugLog("Extracted energy " + std::to_string(energy) + " from frame " + std::to_string(frameNumber));
+        debugLog("Extracted energy " + std::to_string(*energy) + " from frame " + std::to_string(frameNumber));
     } else {
         step.energy = -100.0; // 默认能量值
     }
@@ -161,149 +163,6 @@ bool XyzParser::parseXyzFrame(std::ifstream& file, data::OptStep& step, int fram
     }
     
     return !step.atoms.empty();
-}
-
-double XyzParser::extractEnergyFromComment(const std::string& comment, bool& energyFound, data::ParsedData& data, int frameNumber) {
-    energyFound = false;
-    
-    // 在第一帧时尝试提取charge和spin信息
-    if (frameNumber == 1 && !data.hasChargeSpinInfo) {
-        std::string trimmed = string_utils::trim(comment);
-        
-        // 将字符串按空格分割
-        std::istringstream iss(trimmed);
-        std::vector<std::string> tokens;
-        std::string token;
-        
-        while (iss >> token) {
-            tokens.push_back(token);
-        }
-        
-        // 检查是否有且仅有两个token，并且都是整数
-        if (tokens.size() == 2) {
-            try {
-                bool isFirstInt = string_utils::isValidNumber(tokens[0]);
-                bool isSecondInt = string_utils::isValidNumber(tokens[1]);
-                
-                if (isFirstInt && isSecondInt) {
-                    // 检查是否为整数（不包含小数点）
-                    if (tokens[0].find('.') == std::string::npos && 
-                        tokens[1].find('.') == std::string::npos) {
-                        
-                        data.charge = string_utils::toInt(tokens[0], 0);
-                        data.spin = string_utils::toInt(tokens[1], 1);
-                        data.hasChargeSpinInfo = true;
-                        
-                        infoLog("Extracted charge: " + std::to_string(data.charge) + 
-                               ", spin: " + std::to_string(data.spin) + " from first frame");
-                        
-                        // 如果第二行只有charge和spin信息，直接返回
-                        return 0.0;
-                    }
-                }
-            } catch (const std::exception& e) {
-                debugLog("Failed to parse charge/spin: " + std::string(e.what()));
-            }
-        }
-    }
-    
-    // 尝试ORCA格式：Coordinates from ORCA-job IRC-TS1-2-IM1-1 E -687.545427056709
-    double energy = extractOrcaEnergy(comment);
-    if (energy != 0.0) {
-        energyFound = true;
-        return energy;
-    }
-    
-    // 尝试molclus格式：Energy =   -147.48410656 a.u.  #Cluster:    1
-    energy = extractMolclusEnergy(comment);
-    if (energy != 0.0) {
-        energyFound = true;
-        return energy;
-    }
-    
-    // 尝试xtb格式：energy: -149.706157544781 gnorm: 0.499531841458 xtb: 6.7.0 (75e6a61)
-    energy = extractXtbEnergy(comment);
-    if (energy != 0.0) {
-        energyFound = true;
-        return energy;
-    }
-    
-    return 0.0;
-}
-
-double XyzParser::extractOrcaEnergy(const std::string& comment) {
-    // 使用正则表达式匹配ORCA格式：Coordinates from ORCA-job ... E 数字
-    std::regex orcaPattern(R"(Coordinates\s+from\s+ORCA-job\s+.+\s+E\s+([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?))");
-    std::smatch match;
-    
-    if (std::regex_search(comment, match, orcaPattern)) {
-        try {
-            double energy = std::stod(match[1].str());
-            debugLog("Extracted ORCA energy: " + std::to_string(energy));
-            
-            // 只在第一次检测时输出提示
-            if (!orcaDetected) {
-                infoLog(">> Detected ORCA output format - energy information available");
-                orcaDetected = true;
-            }
-            
-            return energy;
-        } catch (const std::exception& e) {
-            debugLog("Failed to convert ORCA energy: " + std::string(e.what()));
-        }
-    }
-    
-    return 0.0;
-}
-
-double XyzParser::extractMolclusEnergy(const std::string& comment) {
-    // 使用正则表达式匹配：Energy = 数字 a.u.
-    std::regex molclusPattern(R"(Energy\s*=\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s*a\.u\.)");
-    std::smatch match;
-    
-    if (std::regex_search(comment, match, molclusPattern)) {
-        try {
-            double energy = std::stod(match[1].str());
-            debugLog("Extracted molclus energy: " + std::to_string(energy));
-            
-            // 只在第一次检测时输出提示
-            if (!molclusDetected) {
-                infoLog(">> Detected molclus output format - energy information available");
-                molclusDetected = true;
-            }
-            
-            return energy;
-        } catch (const std::exception& e) {
-            debugLog("Failed to convert molclus energy: " + std::string(e.what()));
-        }
-    }
-    
-    return 0.0;
-}
-
-double XyzParser::extractXtbEnergy(const std::string& comment) {
-    // 使用正则表达式匹配：energy: 数字
-    std::regex xtbPattern(R"(energy:\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?))");
-    std::smatch match;
-    
-    if (std::regex_search(comment, match, xtbPattern)) {
-        try {
-            double energy = std::stod(match[1].str());
-            debugLog("Extracted xtb energy: " + std::to_string(energy));
-            
-            // 只在第一次检测时输出提示
-            if (!xtbDetected) {
-                infoLog(">> Detected xtb output format - energy information available");
-                xtbDetected = true;
-            }
-            
-            return energy;
-        } catch (const std::exception& e) {
-            debugLog("Failed to convert xtb energy: " + std::string(e.what()));
-        }
-    }
-    
-    return 0.0;
 }
 
 bool XyzParser::parseAtomLine(const std::string& line, data::Atom& atom) {

@@ -1,6 +1,9 @@
 #pragma once
+
 #include "parser_interface.h"
-#include "../string/string_utils.h"
+#include "parsers/xyz/xyz_comment_parser.h"
+#include "string/string_utils.h"
+
 #include <regex>
 
 namespace fakeg {
@@ -23,23 +26,15 @@ private:
     bool parseXyzTrajectory(std::ifstream& file, data::ParsedData& data);
     bool parseXyzFrame(std::ifstream& file, data::OptStep& step, int frameNumber, data::ParsedData& data);
     
-    // 能量提取方法
-    double extractEnergyFromComment(const std::string& comment, bool& energyFound, data::ParsedData& data, int frameNumber);
-    double extractMolclusEnergy(const std::string& comment);
-    double extractXtbEnergy(const std::string& comment);
-    double extractOrcaEnergy(const std::string& comment);  // 新增ORCA能量提取
-    
     // 辅助方法
     bool parseAtomLine(const std::string& line, data::Atom& atom);  // 改为返回bool
     
     // 统计信息
     int totalFrames;
     int framesWithEnergy;
-    
-    // 格式提示标志
-    bool molclusDetected;
-    bool xtbDetected;
-    bool orcaDetected;  // 新增ORCA检测标志
+
+    // Comment parsing pipeline (energy + charge/spin)
+    xyz::XyzCommentParser commentParser;
 };
 
 } // namespace parsers

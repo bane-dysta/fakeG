@@ -1,8 +1,7 @@
 #include "fake_g_app.h"
-#include "../io/file_reader.h"
-#include "../parsers/parser_interface.h"
-#include <iostream>
+
 #include <filesystem>
+#include <iostream>
 
 namespace fakeg {
 namespace app {
@@ -66,8 +65,9 @@ bool FakeGApp::initialize() {
     if (outputFilename.empty()) {
         outputFilename = io::GaussianWriter::generateOutputFilename(inputFilename, "_fake");
     }
-    
-    return true;
+
+    // Ensure output directory exists (important when output is in a non-existent folder).
+    return setupOutput();
 }
 
 bool FakeGApp::processFile() {
@@ -116,14 +116,6 @@ bool FakeGApp::validateOutput() {
     return writer.validateOutput(outputFilename);
 }
 
-bool FakeGApp::run(int argc, char* argv[]) {
-    if (!parseCommandLineArgs(argc, argv)) {
-        return false;
-    }
-    
-    return processFile();
-}
-
 bool FakeGApp::run(const std::string& inputFilename, bool debugMode) {
     setInputFile(inputFilename);
     setDebugMode(debugMode);
@@ -141,61 +133,6 @@ std::string FakeGApp::getOutputFile() const {
 
 bool FakeGApp::isDebugMode() const {
     return debugMode;
-}
-
-void FakeGApp::printHelp() const {
-    std::cout << "Usage: " << programName << " [options] <input_file>" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Convert quantum chemistry calculation output to Gaussian format" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Options:" << std::endl;
-    std::cout << "  --debug              Enable debug mode" << std::endl;
-    std::cout << "  -o, --output FILE    Specify output filename" << std::endl;
-    std::cout << "  -h, --help           Show this help message" << std::endl;
-    std::cout << "  -v, --version        Show version information" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Examples:" << std::endl;
-    std::cout << "  " << programName << " input.out" << std::endl;
-    std::cout << "  " << programName << " --debug -o output.log input.out" << std::endl;
-}
-
-void FakeGApp::printVersion() const {
-    std::cout << programName << " version " << programVersion << std::endl;
-    std::cout << "Author: " << authorInfo << std::endl;
-}
-
-bool FakeGApp::parseCommandLineArgs(int argc, char* argv[]) {
-    io::ArgumentParser argParser(argc, argv);
-    
-    if (argParser.hasFlag("-h") || argParser.hasFlag("--help")) {
-        printHelp();
-        return false;
-    }
-    
-    if (argParser.hasFlag("-v") || argParser.hasFlag("--version")) {
-        printVersion();
-        return false;
-    }
-    
-    setDebugMode(argParser.hasFlag("--debug"));
-    
-    std::string outputFile = argParser.getValue("-o", "");
-    if (outputFile.empty()) {
-        outputFile = argParser.getValue("--output", "");
-    }
-    if (!outputFile.empty()) {
-        setOutputFile(outputFile);
-    }
-    
-    std::string inputFile = argParser.getPositionalArg(0);
-    if (inputFile.empty()) {
-        showErrorInfo("Please specify input file");
-        printHelp();
-        return false;
-    }
-    
-    setInputFile(inputFile);
-    return true;
 }
 
 bool FakeGApp::setupOutput() {
